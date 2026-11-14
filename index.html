@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Protocols">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Protocol Finder</title>
+<style>
+:root{
+  --bg:#f6f7f9; --surface:#fff; --text:#0f172a; --muted:#5b6475; --line:#e3e6eb;
+  --accent:#c2410c; --accent-soft:#fff1e8; --mark:#fde68a; --chip:#eef1f5;
+  --page-filter:none;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0b1020; --surface:#141a2c; --text:#e7eaf0; --muted:#98a1b3; --line:#252d43;
+    --accent:#fb923c; --accent-soft:#2a1a10; --mark:#7c5d00; --chip:#1e2639;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0b1020; --surface:#141a2c; --text:#e7eaf0; --muted:#98a1b3; --line:#252d43;
+  --accent:#fb923c; --accent-soft:#2a1a10; --mark:#7c5d00; --chip:#1e2639;
+}
+:root[data-night="1"]{ --page-filter: invert(0.92) hue-rotate(180deg); }
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--text);font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%;}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+.hidden{display:none!important}
+
+/* search view */
+#searchView{max-width:720px;margin:0 auto;padding:0 16px calc(24px + env(safe-area-inset-bottom))}
+.searchbar{position:sticky;top:0;z-index:5;background:var(--bg);padding:calc(10px + env(safe-area-inset-top)) 0 10px}
+.searchbox{display:flex;align-items:center;gap:8px;background:var(--surface);border:2px solid var(--line);border-radius:14px;padding:0 6px 0 14px;height:54px}
+.searchbox:focus-within{border-color:var(--accent)}
+.searchbox svg{flex:none;color:var(--muted)}
+#q{flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--text);font-size:19px;height:100%}
+#q::placeholder{color:var(--muted)}
+#q::-webkit-search-cancel-button,#q::-webkit-search-decoration{-webkit-appearance:none;display:none}
+#clear{width:40px;height:40px;border-radius:10px;color:var(--muted);font-size:22px}
+.sec-label{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:18px 2px 8px}
+.list{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.item{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:13px 14px;border-top:1px solid var(--line);min-height:56px}
+.item:first-child{border-top:0}
+.item:active{background:var(--chip)}
+.num{flex:none;font:600 13px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--accent);background:var(--accent-soft);border-radius:7px;padding:6px 7px;min-width:52px;text-align:center}
+.it-main{flex:1;min-width:0}
+.it-title{font-weight:600;font-size:16.5px}
+.it-sub{font-size:13.5px;color:var(--muted);margin-top:2px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}
+.it-sub mark,.it-title mark{background:var(--mark);color:inherit;border-radius:3px;padding:0 1px}
+.chev{flex:none;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:9px 14px;font-size:15px;font-weight:500;min-height:42px}
+.chip:active{background:var(--chip)}
+.chap{display:flex;justify-content:space-between;align-items:center;width:100%;padding:15px 14px;border-top:1px solid var(--line);font-weight:600;min-height:54px}
+.chap:first-child{border-top:0}
+.chap .cnt{color:var(--muted);font-weight:400;font-size:14px}
+.chap-body .item{padding-left:20px}
+.empty{color:var(--muted);text-align:center;padding:26px 10px}
+.foot{color:var(--muted);font-size:12.5px;text-align:center;margin:26px 0 8px;line-height:1.6}
+.foot button{text-decoration:underline;color:var(--muted)}
+
+/* viewer */
+#viewer{position:fixed;inset:0;background:var(--bg);z-index:10;display:flex;flex-direction:column}
+.vbar{flex:none;display:flex;align-items:center;gap:4px;padding:calc(6px + env(safe-area-inset-top)) 6px 6px;background:var(--surface);border-bottom:1px solid var(--line)}
+.ibtn{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;flex:none}
+.ibtn:active{background:var(--chip)}
+.ibtn.on{color:var(--accent)}
+.vtitle{flex:1;min-width:0;font-weight:700;font-size:15.5px;line-height:1.2}
+.vtitle small{display:block;font-weight:500;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vtitle span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+#pages{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:10px 0 20px;overscroll-behavior:contain}
+.pg{position:relative;margin:0 auto 10px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.18)}
+.pg canvas{display:block;width:100%;height:100%;filter:var(--page-filter)}
+.pg .hl{position:absolute;background:rgba(250,204,21,.38);mix-blend-mode:multiply;border-radius:2px;pointer-events:none;outline:2px solid rgba(234,88,12,.8)}
+:root[data-night="1"] .pg .hl{mix-blend-mode:normal;background:rgba(250,204,21,.28)}
+.pg .pno{position:absolute;right:6px;bottom:4px;font-size:11px;color:#777;background:rgba(255,255,255,.8);padding:1px 5px;border-radius:4px}
+.vfoot{flex:none;display:flex;gap:8px;padding:8px 10px calc(8px + env(safe-area-inset-bottom));background:var(--surface);border-top:1px solid var(--line)}
+.vfoot button{flex:1;min-height:46px;border-radius:12px;background:var(--chip);font-size:14px;font-weight:600;padding:0 10px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.vfoot button:disabled{opacity:.35}
+.zoom{display:flex;align-items:center;gap:2px}
+.status{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);color:var(--muted)}
+</style>
+</head>
+<body>
+<main id="searchView">
+  <div class="searchbar">
+    <div class="searchbox">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+      <input id="q" type="search" inputmode="search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search protocols, drugs, procedures" enterkeyhint="search" autofocus>
+      <button id="clear" class="hidden" aria-label="Clear search">×</button>
+    </div>
+  </div>
+  <div id="results"></div>
+  <div id="home"></div>
+  <div class="foot" id="foot"></div>
+</main>
+
+<section id="viewer" class="hidden" aria-modal="true">
+  <div class="vbar">
+    <button class="ibtn" id="vBack" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <div class="vtitle"><small id="vNum"></small><span id="vTitle"></span></div>
+    <div class="zoom">
+      <button class="ibtn" id="zOut" aria-label="Zoom out"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4M8 11h6"/></svg></button>
+      <button class="ibtn" id="zIn" aria-label="Zoom in"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4M8 11h6M11 8v6"/></svg></button>
+    </div>
+    <button class="ibtn" id="vNight" aria-label="Dark pages"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg></button>
+    <button class="ibtn" id="vStar" aria-label="Favorite"><svg width="24" height="24" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path id="starPath" fill="none" d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></button>
+  </div>
+  <div id="pages"></div>
+  <div class="vfoot">
+    <button id="vPrev"></button>
+    <button id="vNext"></button>
+  </div>
+</section>
+
+<script src="pdf.min.js"></script>
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+let DATA = null, SECTIONS = [], PAGES_LC = [], ABBR = {};
+let favs = store.get('favs', []), recent = store.get('recent', []);
+let zoom = store.get('zoom', 1);
+const openChaps = new Set();
+
+// Extra plain-language synonyms that the document's own glossary does not cover.
+const SYN = {
+  epi:['epinephrine'], vtach:['ventricular tachycardia','tachycardia'], vt:['ventricular tachycardia'], vfib:['ventricular fibrillation','cardiac arrest'], vf:['ventricular fibrillation'],
+  afib:['atrial fibrillation'], 'a-fib':['atrial fibrillation'], svt:['tachycardia','supraventricular'], psvt:['tachycardia'],
+  mi:['acs','stemi','chest pain'], heart:['cardiac'], attack:['acs'], cpr:['cardiac arrest','basic life support','mechanical cpr'], code:['cardiac arrest'],
+  od:['overdose','poisoning'], tox:['poisoning'], peds:['pediatric'], kid:['pediatric'], baby:['neonatal','childbirth'], newborn:['neonatal'],
+  ob:['obstetric','pregnancy','childbirth'], preg:['pregnancy'], tbi:['head injuries'], cva:['stroke'], gcs:['glasgow'], sz:['seizure'], dka:['diabetic ketoacidosis'],
+  intubation:['rsi','rapid sequence'], intubate:['rsi'], tube:['endotracheal','chest tube'], vent:['mechanical ventilation','ventilator'], cric:['cricothyrotomy'],
+  io:['intraosseous'], pacing:['transcutaneous pacing'], cardiovert:['synchronized cardioversion'], tpa:['alteplase'], tnk:['tenecteplase'], txa:['tranexamic acid'],
+  bicarb:['sodium bicarbonate'], mag:['magnesium sulfate'], k:['potassium'], hyperk:['hyperkalemia'], benzo:['midazolam','lorazepam','diazepam'],
+  narcan:['naloxone'], zofran:['ondansetron'], versed:['midazolam'], ativan:['lorazepam'], levo:['norepinephrine'], levophed:['norepinephrine'], neo:['phenylephrine'],
+  roc:['rocuronium'], sux:['succinylcholine'], precedex:['dexmedetomidine'], keppra:['levetiracetam'], cardene:['nicardipine'], lasix:['furosemide'], dilaudid:['hydromorphone'],
+  cyanokit:['hydroxocobalamin'], benadryl:['diphenhydramine'], tylenol:['acetaminophen'], decadron:['dexamethasone'], solumedrol:['methylprednisolone'], cleviprex:['clevidipine'],
+  blood:['blood product','transfusion'], bp:['blood pressure'], htn:['hypertension','blood pressure'], hypotension:['shock'], sob:['respiratory','asthma'], copd:['asthma'],
+  allergy:['anaphylaxis','allergic'], bee:['anaphylaxis','envenomation'], snake:['envenomation'], bite:['envenomation'], heat:['hyperthermia'], cold:['hypothermia'],
+  burn:['burns'], dive:['decompression'], bends:['decompression'], doa:['death in the field'], dnr:['polst'], refusal:['refusal'], ama:['refusal'], balloon:['intra-aortic balloon'],
+  agitated:['combative'], agitation:['combative'], psych:['combative','psychiatric'], nausea:['nausea'], vomiting:['nausea'], pain:['pain management'], sedation:['sedation'],
+  lvo:['stroke'], stroke:['stroke'], ich:['hemorrhagic stroke'], ecg:['12-lead'], ekg:['12-lead','ecg'], drip:['infusion'], drips:['infusion mixtures'], mix:['infusion mixtures'],
+};
+
+const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const norm = s => s.toLowerCase();
+
+// ---------- data ----------
+fetch('data.json').then(r => r.json()).then(d => {
+  DATA = d; ABBR = d.abbr || {};
+  SECTIONS = d.sections.map((s, i) => ({...s, i, key: norm(s.num + ' ' + s.title), words: norm(s.title).split(/[^a-z0-9]+/).filter(Boolean)}));
+  PAGES_LC = d.pages.map(p => norm(p));
+  render(); route();
+}).catch(() => { $('#home').innerHTML = '<div class="empty">Could not load protocol data. Check your connection and reload.</div>'; });
+
+// ---------- search ----------
+function lev1(a, b){ // true if edit distance <= 1
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0, j = 0, e = 0;
+  while (i < a.length && j < b.length){
+    if (a[i] === b[j]){ i++; j++; continue; }
+    if (++e > 1) return false;
+    if (a.length > b.length) i++; else if (b.length > a.length) j++; else { i++; j++; }
+  }
+  return e + (a.length - i) + (b.length - j) <= 1;
+}
+function levN(a, b){
+  const m = a.length, n = b.length; let prev = Array.from({length: n + 1}, (_, j) => j);
+  for (let i = 1; i <= m; i++){ const cur = [i]; for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); prev = cur; }
+  return prev[n];
+}
+function expand(tok){
+  const alts = [tok];
+  if (SYN[tok]) alts.push(...SYN[tok]);
+  if (ABBR[tok]) alts.push(norm(ABBR[tok]).replace(/\(.*?\)/g,'').trim());
+  return alts;
+}
+function titleScore(s, toks){
+  let total = 0;
+  for (const t of toks){
+    let best = 0;
+    for (const alt of expand(t)){
+      const multi = alt.includes(' ');
+      let sc = 0;
+      if (s.num === alt) sc = 120;
+      else if (multi){ if (s.key.includes(alt)) sc = alt === t ? 40 : 30; }
+      else if (s.words.some(w => w === alt)) sc = alt === t ? 50 : 34;
+      else if (s.words.some(w => w.startsWith(alt))) sc = alt === t ? (alt.length >= 4 ? 40 : 20) : 26;
+      else if (alt.length >= 3 && s.key.includes(alt)) sc = alt === t ? 22 : 16;
+      else if (alt === t && alt.length >= 4 && s.words.some(w => lev1(w.slice(0, alt.length + 1), alt) || lev1(w, alt))) sc = 14;
+      else if (alt === t && alt.length >= 6 && s.words.some(w => w.length >= 5 && levN(w, alt) <= 2)) sc = 10;
+      if (sc > best) best = sc;
+    }
+    if (!best) return 0;
+    total += best;
+  }
+  return total + (s.lvl === 1 ? 2 : 0) + (s.chapter && s.chapter.startsWith('Formulary') ? 0 : 1);
+}
+function pageHit(text, toks){
+  for (const t of toks){
+    if (!expand(t).some(a => wordFind(text, a) >= 0)) return false;
+  }
+  return true;
+}
+function wordFind(text, a){
+  // match at a word start so "io" doesn't hit "ratio"
+  let idx = 0;
+  while ((idx = text.indexOf(a, idx)) >= 0){
+    if (idx === 0 || !/[a-z0-9]/.test(text[idx - 1])) return idx;
+    idx++;
+  }
+  return -1;
+}
+function snippet(pageIdx, toks){
+  const raw = DATA.pages[pageIdx], lc = PAGES_LC[pageIdx];
+  let pos = -1, len = 0;
+  for (const t of toks){ for (const a of expand(t)){ const p = wordFind(lc, a); if (p >= 0){ pos = p; len = a.length; break; } } if (pos >= 0) break; }
+  if (pos < 0) return '';
+  let st = Math.max(0, pos - 28); if (st > 0){ const sp = raw.indexOf(" ", st); if (sp >= 0 && sp < pos) st = sp + 1; } const en = Math.min(raw.length, pos + len + 90);
+  let s = raw.slice(st, en).replace(/\s+/g, ' ');
+  let h = esc(s);
+  const terms = toks.flatMap(expand).filter(a => a.length >= 2).sort((a, b) => b.length - a.length);
+  const re = new RegExp('(' + terms.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')', 'gi');
+  h = h.replace(re, '<mark>$1</mark>');
+  return (st > 0 ? '… ' : '') + h + (en < raw.length ? ' …' : '');
+}
+function search(q){
+  const toks = norm(q).split(/[^a-z0-9.\-]+/).map(t => t.replace(/^[.\-]+|[.\-]+$/g,'')).filter(Boolean);
+  if (!toks.length) return null;
+  const titleHits = [];
+  for (const s of SECTIONS){ const sc = titleScore(s, toks); if (sc) titleHits.push({s, sc}); }
+  titleHits.sort((a, b) => b.sc - a.sc || a.s.i - b.s.i);
+  const seen = new Set(titleHits.map(h => h.s.i));
+  const textHits = [];
+  for (const s of SECTIONS){
+    if (s.lvl === 2) continue;
+    const pages = [];
+    for (let p = s.start; p <= s.end; p++) if (pageHit(PAGES_LC[p - 1], toks)) pages.push(p);
+    if (pages.length) textHits.push({s, pages});
+  }
+  // the more pages hit (relative), the more relevant; drop text hits for sections already in title hits
+  const titleFirst = new Map(titleHits.map(h => [h.s.i, h]));
+  for (const th of textHits){ const t = titleFirst.get(th.s.i); if (t) t.pages = th.pages; }
+  const rest = textHits.filter(h => !seen.has(h.s.i)).sort((a, b) => b.pages.length - a.pages.length || a.s.i - b.s.i);
+  return {toks, titleHits: titleHits.slice(0, 25), textHits: rest.slice(0, 40)};
+}
+
+// ---------- rendering (list) ----------
+const chev = '<svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m9 6 6 6-6 6"/></svg>';
+function itemHTML(s, sub, page){
+  return `<button class="item" data-i="${s.i}"${page ? ` data-p="${page}"` : ''}><span class="num">${esc(s.num)}</span><span class="it-main"><div class="it-title">${esc(s.title)}</div>${sub ? `<div class="it-sub">${sub}</div>` : ''}</span>${chev}</button>`;
+}
+function render(){
+  if (!DATA) return;
+  const q = $('#q').value;
+  $('#clear').classList.toggle('hidden', !q);
+  const r = search(q);
+  if (!r){ $('#results').innerHTML = ''; $('#home').classList.remove('hidden'); renderHome(); return; }
+  $('#home').classList.add('hidden');
+  let h = '';
+  if (r.titleHits.length){
+    h += '<div class="sec-label">Protocols</div><div class="list">' + r.titleHits.map(({s}) => itemHTML(s, esc(s.chapter))).join('') + '</div>';
+  }
+  if (r.textHits.length){
+    h += '<div class="sec-label">Mentioned in</div><div class="list">' + r.textHits.map(({s, pages}) =>
+      itemHTML(s, `<b>p.${pages[0] - 1}${pages.length > 1 ? ` +${pages.length - 1}` : ''}</b> · ${snippet(pages[0] - 1, r.toks)}`, pages[0])).join('') + '</div>';
+  }
+  if (!h) h = `<div class="empty">No matches for “${esc(q)}”.<br>Try a drug name, a condition, or a protocol number like 3.10.</div>`;
+  $('#results').innerHTML = h;
+}
+function renderHome(){
+  let h = '';
+  const favS = favs.map(n => SECTIONS.find(s => s.num === n)).filter(Boolean);
+  if (favS.length) h += '<div class="sec-label">Favorites</div><div class="chips">' + favS.map(s => `<button class="chip" data-i="${s.i}">${esc(s.title)}</button>`).join('') + '</div>';
+  const recS = recent.map(n => SECTIONS.find(s => s.num === n)).filter(Boolean).slice(0, 6);
+  if (recS.length) h += '<div class="sec-label">Recent</div><div class="list">' + recS.map(s => itemHTML(s, esc(s.chapter))).join('') + '</div>';
+  if (!favS.length) h += '<div class="sec-label">Tip</div><div class="empty" style="padding:10px 4px;text-align:left">Tap ☆ on any protocol to pin it here for one-tap access.</div>';
+  h += '<div class="sec-label">Browse</div><div class="list">';
+  const chaps = [];
+  for (const s of SECTIONS) if (!chaps.includes(s.chapter)) chaps.push(s.chapter);
+  for (const c of chaps){
+    const items = SECTIONS.filter(s => s.chapter === c);
+    const open = openChaps.has(c);
+    h += `<button class="chap" data-chap="${esc(c)}"><span>${esc(c)}</span><span class="cnt">${items.length} ${open ? '▴' : '▾'}</span></button>`;
+    if (open) h += '<div class="chap-body">' + items.map(s => itemHTML(s, '')).join('') + '</div>';
+  }
+  h += '</div>';
+  $('#home').innerHTML = h;
+}
+function renderFoot(state){
+  const v = (DATA && DATA.pages[0].match(/Version\s+[\d.]+/)) || ['Version 2026.07.14'];
+  $('#foot').innerHTML = `Patient Care Guidelines · ${esc(v[0])}<br>Shows the original document pages, unaltered.<br>${state}<br><button id="theme">Theme: ${esc(store.get('theme', 'auto'))}</button>`;
+}
+renderFoot('');
+
+document.addEventListener('click', e => {
+  const it = e.target.closest('[data-i]');
+  if (it){ openSection(+it.dataset.i, it.dataset.p ? +it.dataset.p : null, true); return; }
+  const ch = e.target.closest('[data-chap]');
+  if (ch){ const c = ch.dataset.chap; openChaps.has(c) ? openChaps.delete(c) : openChaps.add(c); renderHome(); return; }
+  if (e.target.id === 'theme'){
+    const order = ['auto', 'light', 'dark']; const t = order[(order.indexOf(store.get('theme', 'auto')) + 1) % 3];
+    store.set('theme', t); applyTheme(); renderFoot(offlineMsg);
+  }
+});
+let tmr;
+$('#q').addEventListener('input', () => { clearTimeout(tmr); tmr = setTimeout(render, 60); });
+$('#q').addEventListener('keydown', e => {
+  if (e.key === 'Enter'){ const first = document.querySelector('#results [data-i]'); if (first) first.click(); $('#q').blur(); }
+});
+$('#clear').addEventListener('click', () => { $('#q').value = ''; render(); $('#q').focus(); });
+function applyTheme(){
+  const t = store.get('theme', 'auto');
+  if (t === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.dataset.theme = t;
+  if (store.get('night', false)) document.documentElement.dataset.night = '1'; else document.documentElement.removeAttribute('data-night');
+  $('#vNight').classList.toggle('on', !!store.get('night', false));
+}
+applyTheme();
+
+// ---------- pdf ----------
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
+let pdfDoc = null;
+const pdfReady = pdfjsLib.getDocument({url: 'guidelines.pdf', disableAutoFetch: false}).promise.then(d => (pdfDoc = d));
+pdfReady.catch(() => {});
+
+let cur = null, renderToken = 0, observer = null;
+function openSection(i, page, push){
+  const s = SECTIONS[i]; if (!s) return;
+  cur = {s, page};
+  recent = [s.num, ...recent.filter(n => n !== s.num)].slice(0, 12); store.set('recent', recent);
+  if (push) history.pushState({sec: s.num, page}, '', '#' + encodeURIComponent(s.num) + (page ? '@' + page : ''));
+  $('#vNum').textContent = s.num + ' · ' + s.chapter;
+  $('#vTitle').textContent = s.title;
+  updateStar();
+  const prev = SECTIONS[i - 1], next = SECTIONS[i + 1];
+  $('#vPrev').disabled = !prev; $('#vPrev').textContent = prev ? '‹ ' + prev.title : '';
+  $('#vNext').disabled = !next; $('#vNext').textContent = next ? next.title + ' ›' : '';
+  $('#viewer').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+  $('#q').blur();
+  buildPages();
+}
+function closeViewer(){
+  $('#viewer').classList.add('hidden'); document.body.style.overflow = ''; cur = null; renderToken++;
+  if (observer) observer.disconnect();
+  $('#pages').innerHTML = '';
+  if (!DATA) return; if (!$('#q').value) renderHome();
+}
+function hlTerms(){
+  const q = $('#q').value; const toks = norm(q).split(/[^a-z0-9.\-]+/).filter(t => t.length >= 2);
+  return toks.flatMap(expand).filter(a => a.length >= 2);
+}
+async function buildPages(){
+  const tok = ++renderToken;
+  const box = $('#pages');
+  box.innerHTML = '<div class="status">Loading…</div>';
+  if (observer) observer.disconnect();
+  try { await pdfReady; } catch(e){ box.innerHTML = '<div class="status">Could not load the document.</div>'; return; }
+  if (tok !== renderToken) return;
+  const {s, page} = cur;
+  box.innerHTML = '';
+  const width = Math.min(box.clientWidth - 16, 900) * zoom;
+  const first = await pdfDoc.getPage(s.start);
+  const vp1 = first.getViewport({scale: 1});
+  const scale = width / vp1.width;
+  const els = [];
+  for (let p = s.start; p <= s.end; p++){
+    const d = document.createElement('div');
+    d.className = 'pg'; d.dataset.p = p;
+    d.style.width = width + 'px'; d.style.height = (vp1.height * scale) + 'px';
+    d.innerHTML = `<span class="pno">p.${p - 1}</span>`;
+    box.appendChild(d); els.push(d);
+  }
+  const terms = hlTerms();
+  observer = new IntersectionObserver(ents => {
+    for (const en of ents) if (en.isIntersecting && !en.target.dataset.done){
+      en.target.dataset.done = '1'; renderPage(en.target, scale, terms, tok);
+    }
+  }, {root: box, rootMargin: '600px 0px'});
+  els.forEach(e => observer.observe(e));
+  const target = page ? els.find(e => +e.dataset.p === page) : null;
+  box.scrollTop = 0;
+  if (target){ target.dataset.scroll = '1'; box.scrollTop = target.offsetTop - 8; }
+}
+async function renderPage(el, scale, terms, tok){
+  const page = await pdfDoc.getPage(+el.dataset.p);
+  if (tok !== renderToken) return;
+  const vp = page.getViewport({scale});
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  const c = document.createElement('canvas');
+  c.width = Math.floor(vp.width * dpr); c.height = Math.floor(vp.height * dpr);
+  el.prepend(c);
+  await page.render({canvasContext: c.getContext('2d'), viewport: vp, transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : null}).promise;
+  if (!terms.length || tok !== renderToken) return;
+  const tc = await page.getTextContent();
+  let firstHl = null;
+  for (const it of tc.items){
+    const t = norm(it.str || '');
+    if (!terms.some(a => wordFind(t, a) >= 0)) continue;
+    const tx = pdfjsLib.Util.transform(vp.transform, it.transform);
+    const h = Math.hypot(tx[2], tx[3]);
+    const d = document.createElement('div'); d.className = 'hl';
+    d.style.left = tx[4] + 'px'; d.style.top = (tx[5] - h) + 'px';
+    d.style.width = (it.width * scale) + 'px'; d.style.height = (h * 1.15) + 'px';
+    el.appendChild(d); if (!firstHl) firstHl = d;
+  }
+  if (firstHl && el.dataset.scroll){ delete el.dataset.scroll; const box = $('#pages'); box.scrollTop = el.offsetTop + firstHl.offsetTop - 120; }
+}
+function updateStar(){
+  const on = cur && favs.includes(cur.s.num);
+  $('#vStar').classList.toggle('on', on);
+  $('#starPath').setAttribute('fill', on ? 'currentColor' : 'none');
+}
+$('#vStar').addEventListener('click', () => {
+  if (!cur) return; const n = cur.s.num;
+  favs = favs.includes(n) ? favs.filter(x => x !== n) : [...favs, n]; store.set('favs', favs); updateStar();
+});
+$('#vBack').addEventListener('click', () => { if (history.state && history.state.sec) history.back(); else closeViewer(); });
+$('#vPrev').addEventListener('click', () => { if (cur) openSection(cur.s.i - 1, null, false); history.replaceState({sec: cur.s.num}, '', '#' + encodeURIComponent(cur.s.num)); });
+$('#vNext').addEventListener('click', () => { if (cur) openSection(cur.s.i + 1, null, false); history.replaceState({sec: cur.s.num}, '', '#' + encodeURIComponent(cur.s.num)); });
+$('#vNight').addEventListener('click', () => { store.set('night', !store.get('night', false)); applyTheme(); });
+function setZoom(z){ zoom = Math.max(1, Math.min(3, z)); store.set('zoom', zoom); if (cur){ cur.page = currentPage(); buildPages(); } }
+function currentPage(){ const box = $('#pages'); const els = [...box.querySelectorAll('.pg')]; const top = box.scrollTop + 40; let p = null; for (const e of els) if (e.offsetTop <= top) p = +e.dataset.p; return p; }
+$('#zIn').addEventListener('click', () => setZoom(zoom + 0.5));
+$('#zOut').addEventListener('click', () => setZoom(zoom - 0.5));
+let rsz; window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(() => { if (cur){ cur.page = currentPage(); buildPages(); } }, 250); });
+
+function route(){
+  const m = decodeURIComponent(location.hash.slice(1)).match(/^([\w.]+)(?:@(\d+))?$/);
+  const s = m && SECTIONS.find(x => x.num === m[1]);
+  if (s) openSection(s.i, m[2] ? +m[2] : null, false); else if (cur) closeViewer();
+}
+window.addEventListener('popstate', route);
+
+// ---------- offline ----------
+let offlineMsg = '';
+if ('serviceWorker' in navigator && location.protocol !== 'file:'){
+  navigator.serviceWorker.register('sw.js').then(() => navigator.serviceWorker.ready).then(() => {
+    caches.has && caches.keys().then(keys => Promise.all(keys.map(k => caches.open(k).then(c => c.match('guidelines.pdf'))))).then(r => {
+      offlineMsg = r.some(Boolean) ? '✓ Available offline' : 'Downloading for offline use…'; renderFoot(offlineMsg);
+    });
+  }).catch(() => {});
+  navigator.serviceWorker.addEventListener('message', e => { if (e.data === 'cached'){ offlineMsg = '✓ Available offline'; renderFoot(offlineMsg); } });
+}
+})();
+</script>
+</body>
+</html>
