@@ -1,0 +1,18 @@
+{
+  "verified_version": "2026.09.15",
+  "note": "Every value here was read from the guidelines PDF by hand. Pages are PDF page numbers (printed page + 1). Re-verify all values and pages whenever a new PDF version is loaded, then update verified_version.",
+  "ibw_by_age": {"page": 229, "text": "Estimated pediatric IBW chart (per Handtevy)",
+    "kg": {"1": 10, "2": 12, "3": 15, "4": 17, "5": 20, "6": 22, "7": 25, "8": 27, "9": 30, "10": 35, "11": 40, "12": 50, "13": 60}},
+  "weight_note": {"page": 19, "text": "The Handtevy resuscitation system is the approved reference for pediatric resuscitation. A length-based resuscitation tape may be utilized for pediatric weight estimation."},
+  "max_adult": {"page": 19, "text": "Pediatric medication dosages should not exceed maximum single or total adult dose."},
+  "equipment": {"page": 19, "text": "ETT size: (Age + 16) / 4. Subtract 0.5 for cuffed ETT. NG/OG/Foley size: 2x ETT size. ETT depth: 3x ETT size. Chest tube: 4x ETT size."},
+  "maintenance": {"page": 19, "text": "<10 kg: 4 mL/kg. 10 – 20 kg: 40 mL + 2 mL/kg for every kg > 10. >20 kg: 60 + 1 mL/kg for every kg > 20 kg."},
+  "sbp": {"page": 20, "text": "Normal SBP, children < 10 years: > 90 + (age x2) mmHg. Hemorrhagic shock, children < 10 years: SBP > 80 mmHg or presence of a brachial pulse. Head injury, children < 10 years: SBP > 90 + (age x2) mmHg."},
+  "defib": {"page": 49, "text": "First shock 2 J/kg. Second shock 4 J/kg. Subsequent shocks ≥ 4 J/kg, maximum 10 J/kg or adult dose."},
+  "pads": {"page": 50, "text": "If ≤ 10 kg, utilize infant/pediatric pads. If > 10 kg, utilize adult/child pads. The displayed joule setting in Handtevy may not exactly match the calculated dose (rounded to selectable Zoll X-Series levels)."},
+  "cardioversion": {"page": 73, "text": "Synchronized cardioversion: begin with 0.5-1 J/kg; if not effective, increase to 2 J/kg."},
+  "fluids": [
+    {"page": 116, "text": "Hypovolemic & Hemorrhagic Shock: NS/LR 20 mL/kg boluses; 10 mL/kg boluses for neonates to a max of 30 mL/kg."},
+    {"page": 133, "text": "Sepsis: NS/LR 20 mL/kg to maintain an SBP of 90 + (age x2); 10 mL/kg boluses for neonates to a max of 30 mL/kg."}
+  ]
+}

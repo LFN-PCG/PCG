@@ -15,23 +15,27 @@
 :root{
   --bg:#f6f7f9; --surface:#fff; --text:#0f172a; --muted:#5b6475; --line:#e3e6eb;
   --accent:#c2410c; --accent-soft:#fff1e8; --mark:#fde68a; --chip:#eef1f5;
+  --add:#e7f6ec; --add-text:#14532d; --rem:#fdecec; --rem-text:#7f1d1d; --warn:#fff7e0; --warn-text:#713f12;
   --page-filter:none;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --bg:#0b1020; --surface:#141a2c; --text:#e7eaf0; --muted:#98a1b3; --line:#252d43;
     --accent:#fb923c; --accent-soft:#2a1a10; --mark:#7c5d00; --chip:#1e2639;
+    --add:#0f2a1a; --add-text:#9be2b4; --rem:#2e1414; --rem-text:#f5aaaa; --warn:#2b230d; --warn-text:#f3d58a;
   }
 }
 :root[data-theme="dark"]{
   --bg:#0b1020; --surface:#141a2c; --text:#e7eaf0; --muted:#98a1b3; --line:#252d43;
   --accent:#fb923c; --accent-soft:#2a1a10; --mark:#7c5d00; --chip:#1e2639;
+  --add:#0f2a1a; --add-text:#9be2b4; --rem:#2e1414; --rem-text:#f5aaaa; --warn:#2b230d; --warn-text:#f3d58a;
 }
 :root[data-night="1"]{ --page-filter: invert(0.92) hue-rotate(180deg); }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
 body{background:var(--bg);color:var(--text);font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%;}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+input{font:inherit;color:inherit}
 .hidden{display:none!important}
 
 /* search view */
@@ -40,10 +44,15 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .searchbox{display:flex;align-items:center;gap:8px;background:var(--surface);border:2px solid var(--line);border-radius:14px;padding:0 6px 0 14px;height:54px}
 .searchbox:focus-within{border-color:var(--accent)}
 .searchbox svg{flex:none;color:var(--muted)}
-#q{flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--text);font-size:19px;height:100%}
-#q::placeholder{color:var(--muted)}
-#q::-webkit-search-cancel-button,#q::-webkit-search-decoration{-webkit-appearance:none;display:none}
-#clear{width:40px;height:40px;border-radius:10px;color:var(--muted);font-size:22px}
+.searchbox input{flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--text);font-size:19px;height:100%}
+.searchbox input::placeholder{color:var(--muted)}
+input[type=search]::-webkit-search-cancel-button,input[type=search]::-webkit-search-decoration{-webkit-appearance:none;display:none}
+.clear{width:40px;height:40px;border-radius:10px;color:var(--muted);font-size:22px}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 8px;min-height:74px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-weight:600;font-size:15px;position:relative}
+.tile:active{background:var(--chip)}
+.tile svg{color:var(--accent)}
+.badge{position:absolute;top:6px;right:8px;background:var(--accent);color:#fff;font-size:11px;font-weight:700;border-radius:999px;padding:1px 6px}
 .sec-label{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:18px 2px 8px}
 .list{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
 .item{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:13px 14px;border-top:1px solid var(--line);min-height:56px}
@@ -54,6 +63,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .it-title{font-weight:600;font-size:16.5px}
 .it-sub{font-size:13.5px;color:var(--muted);margin-top:2px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}
 .it-sub mark,.it-title mark{background:var(--mark);color:inherit;border-radius:3px;padding:0 1px}
+.upd{display:inline-block;font-size:11px;font-weight:700;color:var(--accent);border:1px solid var(--accent);border-radius:999px;padding:0 6px;margin-left:6px;vertical-align:2px}
 .chev{flex:none;color:var(--muted)}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chip{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:9px 14px;font-size:15px;font-weight:500;min-height:42px}
@@ -66,8 +76,9 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .foot{color:var(--muted);font-size:12.5px;text-align:center;margin:26px 0 8px;line-height:1.6}
 .foot button{text-decoration:underline;color:var(--muted)}
 
-/* viewer */
-#viewer{position:fixed;inset:0;background:var(--bg);z-index:10;display:flex;flex-direction:column}
+/* overlays */
+.overlay{position:fixed;inset:0;background:var(--bg);z-index:10;display:flex;flex-direction:column}
+#viewer{z-index:20}
 .vbar{flex:none;display:flex;align-items:center;gap:4px;padding:calc(6px + env(safe-area-inset-top)) 6px 6px;background:var(--surface);border-bottom:1px solid var(--line)}
 .ibtn{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;flex:none}
 .ibtn:active{background:var(--chip)}
@@ -80,12 +91,47 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .pg canvas{display:block;width:100%;height:100%;filter:var(--page-filter)}
 .pg .hl{position:absolute;background:rgba(250,204,21,.38);mix-blend-mode:multiply;border-radius:2px;pointer-events:none;outline:2px solid rgba(234,88,12,.8)}
 :root[data-night="1"] .pg .hl{mix-blend-mode:normal;background:rgba(250,204,21,.28)}
+.pg .lnk{position:absolute;display:block;border-radius:3px;z-index:2}
+.pg .lnk:active,.pg .lnk.flash{background:rgba(37,99,235,.25);outline:2px solid rgba(37,99,235,.7)}
 .pg .pno{position:absolute;right:6px;bottom:4px;font-size:11px;color:#777;background:rgba(255,255,255,.8);padding:1px 5px;border-radius:4px}
 .vfoot{flex:none;display:flex;gap:8px;padding:8px 10px calc(8px + env(safe-area-inset-bottom));background:var(--surface);border-top:1px solid var(--line)}
 .vfoot button{flex:1;min-height:46px;border-radius:12px;background:var(--chip);font-size:14px;font-weight:600;padding:0 10px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .vfoot button:disabled{opacity:.35}
 .zoom{display:flex;align-items:center;gap:2px}
 .status{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);color:var(--muted)}
+.pbody{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:12px 16px calc(24px + env(safe-area-inset-bottom))}
+.pbody > *{max-width:720px;margin-left:auto;margin-right:auto}
+.toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--text);color:var(--bg);padding:12px 16px;border-radius:12px;font-weight:600;z-index:50;box-shadow:0 4px 16px rgba(0,0,0,.3);max-width:calc(100% - 32px)}
+
+/* peds */
+.warn{background:var(--warn);color:var(--warn-text);border-radius:12px;padding:10px 12px;font-size:13.5px;line-height:1.45;margin-bottom:12px}
+.inputs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px}
+.field{background:var(--surface);border:2px solid var(--line);border-radius:14px;padding:8px 12px}
+.field:focus-within{border-color:var(--accent)}
+.field label{display:block;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.field input{width:100%;border:0;outline:0;background:transparent;font-size:26px;font-weight:700;padding:2px 0}
+.est{font-size:13px;color:var(--muted);margin:2px 2px 10px;min-height:18px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px}
+.card h3{margin:0 0 6px;font-size:13px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:5px 0;border-top:1px dashed var(--line)}
+.row:first-of-type{border-top:0}
+.row .k{font-size:15px}
+.row .v{font-size:20px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
+.row .v small{font-size:13px;font-weight:500;color:var(--muted)}
+.calc{font-size:12.5px;color:var(--muted);margin-top:6px;line-height:1.45}
+.src{display:inline-block;margin-top:8px;font-size:13px;font-weight:600;color:var(--accent);padding:6px 0}
+.dim{color:var(--muted);font-size:14px}
+
+/* changes */
+.chg{background:var(--surface);border:1px solid var(--line);border-radius:14px;margin-bottom:10px;overflow:hidden}
+.chg-h{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:12px 14px}
+.chg-h .st{font-size:11px;font-weight:700;text-transform:uppercase;border-radius:999px;padding:2px 8px;background:var(--chip);color:var(--muted)}
+.chg-b{padding:0 14px 12px;font-size:13.5px}
+.dl{padding:4px 8px;border-radius:6px;margin-top:3px;line-height:1.4}
+.dl.a{background:var(--add);color:var(--add-text)}
+.dl.r{background:var(--rem);color:var(--rem-text);text-decoration:line-through;text-decoration-thickness:1px}
+.btn{display:block;width:100%;text-align:center;background:var(--accent);color:#fff;border-radius:12px;padding:13px;font-weight:700;margin:10px 0}
+.btn.ghost{background:var(--chip);color:var(--text)}
 </style>
 </head>
 <body>
@@ -94,7 +140,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
     <div class="searchbox">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
       <input id="q" type="search" inputmode="search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search protocols, drugs, procedures" enterkeyhint="search" autofocus>
-      <button id="clear" class="hidden" aria-label="Clear search">×</button>
+      <button id="clear" class="clear hidden" aria-label="Clear search">×</button>
     </div>
   </div>
   <div id="results"></div>
@@ -102,7 +148,15 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
   <div class="foot" id="foot"></div>
 </main>
 
-<section id="viewer" class="hidden" aria-modal="true">
+<section id="panel" class="overlay hidden">
+  <div class="vbar">
+    <button class="ibtn" id="pBack" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <div class="vtitle"><small id="pSub"></small><span id="pTitle"></span></div>
+  </div>
+  <div class="pbody" id="pBody"></div>
+</section>
+
+<section id="viewer" class="overlay hidden">
   <div class="vbar">
     <button class="ibtn" id="vBack" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
     <div class="vtitle"><small id="vNum"></small><span id="vTitle"></span></div>
@@ -129,12 +183,12 @@ const store = {
   get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
   set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
 };
-let DATA = null, SECTIONS = [], PAGES_LC = [], ABBR = {};
+let DATA = null, SECTIONS = [], PAGES_LC = [], ABBR = {}, CHANGES = null, PEDS = null, CHANGED = new Map();
 let favs = store.get('favs', []), recent = store.get('recent', []);
 let zoom = store.get('zoom', 1);
 const openChaps = new Set();
 
-// Extra plain-language synonyms that the document's own glossary does not cover.
+// Plain-language synonyms that the document's own glossary does not cover.
 const SYN = {
   epi:['epinephrine'], vtach:['ventricular tachycardia','tachycardia'], vt:['ventricular tachycardia'], vfib:['ventricular fibrillation','cardiac arrest'], vf:['ventricular fibrillation'],
   afib:['atrial fibrillation'], 'a-fib':['atrial fibrillation'], svt:['tachycardia','supraventricular'], psvt:['tachycardia'],
@@ -149,24 +203,32 @@ const SYN = {
   cyanokit:['hydroxocobalamin'], benadryl:['diphenhydramine'], tylenol:['acetaminophen'], decadron:['dexamethasone'], solumedrol:['methylprednisolone'], cleviprex:['clevidipine'],
   blood:['blood product','transfusion'], bp:['blood pressure'], htn:['hypertension','blood pressure'], hypotension:['shock'], sob:['respiratory','asthma'], copd:['asthma'],
   allergy:['anaphylaxis','allergic'], bee:['anaphylaxis','envenomation'], snake:['envenomation'], bite:['envenomation'], heat:['hyperthermia'], cold:['hypothermia'],
-  burn:['burns'], dive:['decompression'], bends:['decompression'], doa:['death in the field'], dnr:['polst'], refusal:['refusal'], ama:['refusal'], balloon:['intra-aortic balloon'],
-  agitated:['combative'], agitation:['combative'], psych:['combative','psychiatric'], nausea:['nausea'], vomiting:['nausea'], pain:['pain management'], sedation:['sedation'],
-  lvo:['stroke'], stroke:['stroke'], ich:['hemorrhagic stroke'], ecg:['12-lead'], ekg:['12-lead','ecg'], drip:['infusion'], drips:['infusion mixtures'], mix:['infusion mixtures'],
+  burn:['burns'], dive:['decompression'], bends:['decompression'], doa:['death in the field'], dnr:['polst'], ama:['refusal'], balloon:['intra-aortic balloon'],
+  agitated:['combative'], agitation:['combative'], psych:['combative','psychiatric'], vomiting:['nausea'], pain:['pain management'],
+  lvo:['stroke'], ich:['hemorrhagic stroke'], ecg:['12-lead'], ekg:['12-lead','ecg'], drip:['infusion'], drips:['infusion mixtures'], mix:['infusion mixtures'],
+  pressor:['vasopressor','push dose'], pressors:['vasopressor','push dose'],
 };
 
-const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const norm = s => s.toLowerCase();
+const fmt = (n, d = 1) => { const r = Math.round(n * 10 ** d) / 10 ** d; return String(r); };
+const pp = p => p - 1; // printed page number for a PDF page
 
 // ---------- data ----------
-fetch('data.json').then(r => r.json()).then(d => {
-  DATA = d; ABBR = d.abbr || {};
+Promise.all([
+  fetch('data.json').then(r => r.json()),
+  fetch('changes.json').then(r => r.ok ? r.json() : null).catch(() => null),
+  fetch('peds.json').then(r => r.ok ? r.json() : null).catch(() => null),
+]).then(([d, ch, peds]) => {
+  DATA = d; ABBR = d.abbr || {}; PEDS = peds;
   SECTIONS = d.sections.map((s, i) => ({...s, i, key: norm(s.num + ' ' + s.title), words: norm(s.title).split(/[^a-z0-9]+/).filter(Boolean)}));
   PAGES_LC = d.pages.map(p => norm(p));
-  render(); route();
+  if (ch && ch.to === d.version){ CHANGES = ch; for (const c of ch.sections) if (c.status !== 'removed') CHANGED.set(c.num, c); }
+  render(); renderFoot(offlineMsg); route();
 }).catch(() => { $('#home').innerHTML = '<div class="empty">Could not load protocol data. Check your connection and reload.</div>'; });
 
 // ---------- search ----------
-function lev1(a, b){ // true if edit distance <= 1
+function lev1(a, b){
   if (Math.abs(a.length - b.length) > 1) return false;
   let i = 0, j = 0, e = 0;
   while (i < a.length && j < b.length){
@@ -208,14 +270,7 @@ function titleScore(s, toks){
   }
   return total + (s.lvl === 1 ? 2 : 0) + (s.chapter && s.chapter.startsWith('Formulary') ? 0 : 1);
 }
-function pageHit(text, toks){
-  for (const t of toks){
-    if (!expand(t).some(a => wordFind(text, a) >= 0)) return false;
-  }
-  return true;
-}
 function wordFind(text, a){
-  // match at a word start so "io" doesn't hit "ratio"
   let idx = 0;
   while ((idx = text.indexOf(a, idx)) >= 0){
     if (idx === 0 || !/[a-z0-9]/.test(text[idx - 1])) return idx;
@@ -223,21 +278,27 @@ function wordFind(text, a){
   }
   return -1;
 }
+function pageHit(text, toks){
+  for (const t of toks) if (!expand(t).some(a => wordFind(text, a) >= 0)) return false;
+  return true;
+}
 function snippet(pageIdx, toks){
   const raw = DATA.pages[pageIdx], lc = PAGES_LC[pageIdx];
   let pos = -1, len = 0;
   for (const t of toks){ for (const a of expand(t)){ const p = wordFind(lc, a); if (p >= 0){ pos = p; len = a.length; break; } } if (pos >= 0) break; }
   if (pos < 0) return '';
-  let st = Math.max(0, pos - 28); if (st > 0){ const sp = raw.indexOf(" ", st); if (sp >= 0 && sp < pos) st = sp + 1; } const en = Math.min(raw.length, pos + len + 90);
-  let s = raw.slice(st, en).replace(/\s+/g, ' ');
-  let h = esc(s);
+  let st = Math.max(0, pos - 28);
+  if (st > 0){ const sp = raw.indexOf(' ', st); if (sp >= 0 && sp < pos) st = sp + 1; }
+  const en = Math.min(raw.length, pos + len + 90);
+  let h = esc(raw.slice(st, en).replace(/\s+/g, ' '));
   const terms = toks.flatMap(expand).filter(a => a.length >= 2).sort((a, b) => b.length - a.length);
-  const re = new RegExp('(' + terms.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')', 'gi');
+  const re = new RegExp('(' + terms.map(t => esc(t).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')', 'gi');
   h = h.replace(re, '<mark>$1</mark>');
   return (st > 0 ? '… ' : '') + h + (en < raw.length ? ' …' : '');
 }
+function tokenize(q){ return norm(q).split(/[^a-z0-9.\-]+/).map(t => t.replace(/^[.\-]+|[.\-]+$/g,'')).filter(Boolean); }
 function search(q){
-  const toks = norm(q).split(/[^a-z0-9.\-]+/).map(t => t.replace(/^[.\-]+|[.\-]+$/g,'')).filter(Boolean);
+  const toks = tokenize(q);
   if (!toks.length) return null;
   const titleHits = [];
   for (const s of SECTIONS){ const sc = titleScore(s, toks); if (sc) titleHits.push({s, sc}); }
@@ -248,19 +309,17 @@ function search(q){
     if (s.lvl === 2) continue;
     const pages = [];
     for (let p = s.start; p <= s.end; p++) if (pageHit(PAGES_LC[p - 1], toks)) pages.push(p);
-    if (pages.length) textHits.push({s, pages});
+    if (pages.length && !seen.has(s.i)) textHits.push({s, pages});
   }
-  // the more pages hit (relative), the more relevant; drop text hits for sections already in title hits
-  const titleFirst = new Map(titleHits.map(h => [h.s.i, h]));
-  for (const th of textHits){ const t = titleFirst.get(th.s.i); if (t) t.pages = th.pages; }
-  const rest = textHits.filter(h => !seen.has(h.s.i)).sort((a, b) => b.pages.length - a.pages.length || a.s.i - b.s.i);
-  return {toks, titleHits: titleHits.slice(0, 25), textHits: rest.slice(0, 40)};
+  textHits.sort((a, b) => b.pages.length - a.pages.length || a.s.i - b.s.i);
+  return {toks, titleHits: titleHits.slice(0, 25), textHits: textHits.slice(0, 40)};
 }
 
-// ---------- rendering (list) ----------
+// ---------- rendering (lists) ----------
 const chev = '<svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m9 6 6 6-6 6"/></svg>';
 function itemHTML(s, sub, page){
-  return `<button class="item" data-i="${s.i}"${page ? ` data-p="${page}"` : ''}><span class="num">${esc(s.num)}</span><span class="it-main"><div class="it-title">${esc(s.title)}</div>${sub ? `<div class="it-sub">${sub}</div>` : ''}</span>${chev}</button>`;
+  const upd = CHANGED.has(s.num) ? '<span class="upd">updated</span>' : '';
+  return `<button class="item" data-i="${s.i}"${page ? ` data-p="${page}"` : ''}><span class="num">${esc(s.num.length > 6 ? s.num.slice(2) : s.num)}</span><span class="it-main"><div class="it-title">${esc(s.title)}${upd}</div>${sub ? `<div class="it-sub">${sub}</div>` : ''}</span>${chev}</button>`;
 }
 function render(){
   if (!DATA) return;
@@ -270,18 +329,25 @@ function render(){
   if (!r){ $('#results').innerHTML = ''; $('#home').classList.remove('hidden'); renderHome(); return; }
   $('#home').classList.add('hidden');
   let h = '';
-  if (r.titleHits.length){
+  if (r.titleHits.length)
     h += '<div class="sec-label">Protocols</div><div class="list">' + r.titleHits.map(({s}) => itemHTML(s, esc(s.chapter))).join('') + '</div>';
-  }
-  if (r.textHits.length){
+  if (r.textHits.length)
     h += '<div class="sec-label">Mentioned in</div><div class="list">' + r.textHits.map(({s, pages}) =>
-      itemHTML(s, `<b>p.${pages[0] - 1}${pages.length > 1 ? ` +${pages.length - 1}` : ''}</b> · ${snippet(pages[0] - 1, r.toks)}`, pages[0])).join('') + '</div>';
-  }
+      itemHTML(s, `<b>p.${pp(pages[0])}${pages.length > 1 ? ` +${pages.length - 1}` : ''}</b> · ${snippet(pages[0] - 1, r.toks)}`, pages[0])).join('') + '</div>';
   if (!h) h = `<div class="empty">No matches for “${esc(q)}”.<br>Try a drug name, a condition, or a protocol number like 3.10.</div>`;
   $('#results').innerHTML = h;
 }
+const ICON = {
+  meds: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="9" width="18" height="7" rx="3.5" transform="rotate(-45 12 12.5)"/><path d="M9.5 10l4.5 4.5"/></svg>',
+  peds: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2.5"/><path d="M12 8v7M8 11h8M9.5 21l2.5-6 2.5 6"/></svg>',
+  chg: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h11M4 12h7M4 17h9"/><path d="M17 14l2 2 3-4"/></svg>',
+};
 function renderHome(){
-  let h = '';
+  let h = '<div class="tiles">' +
+    `<button class="tile" data-go="meds">${ICON.meds}Meds</button>` +
+    `<button class="tile" data-go="peds">${ICON.peds}Peds</button>` +
+    `<button class="tile" data-go="changes">${ICON.chg}Changes${CHANGES && CHANGES.sections.length ? `<span class="badge">${CHANGES.sections.length}</span>` : ''}</button>` +
+    '</div>';
   const favS = favs.map(n => SECTIONS.find(s => s.num === n)).filter(Boolean);
   if (favS.length) h += '<div class="sec-label">Favorites</div><div class="chips">' + favS.map(s => `<button class="chip" data-i="${s.i}">${esc(s.title)}</button>`).join('') + '</div>';
   const recS = recent.map(n => SECTIONS.find(s => s.num === n)).filter(Boolean).slice(0, 6);
@@ -299,15 +365,165 @@ function renderHome(){
   h += '</div>';
   $('#home').innerHTML = h;
 }
+let offlineMsg = '';
 function renderFoot(state){
-  const v = (DATA && DATA.pages[0].match(/Version\s+[\d.]+/)) || ['Version 2026.07.14'];
-  $('#foot').innerHTML = `Patient Care Guidelines · ${esc(v[0])}<br>Shows the original document pages, unaltered.<br>${state}<br><button id="theme">Theme: ${esc(store.get('theme', 'auto'))}</button>`;
+  const v = DATA ? DATA.version : '';
+  $('#foot').innerHTML = `Patient Care Guidelines${v ? ' · Version ' + esc(v) : ''}<br>Shows the original document pages, unaltered.<br>${state || ''}<br><button id="theme">Theme: ${esc(store.get('theme', 'auto'))}</button>`;
 }
 renderFoot('');
 
+// ---------- panels: meds, peds, changes ----------
+let panel = null;
+function openPanel(name, push){
+  panel = name;
+  if (push) history.pushState({panel: name}, '', '#' + name);
+  $('#panel').classList.remove('hidden'); document.body.style.overflow = 'hidden'; $('#q').blur();
+  const body = $('#pBody'); body.scrollTop = 0;
+  if (name === 'meds') renderMeds();
+  else if (name === 'peds') renderPeds();
+  else if (name === 'changes') renderChanges();
+}
+function closePanel(){ panel = null; $('#panel').classList.add('hidden'); if (!cur) document.body.style.overflow = ''; }
+$('#pBack').addEventListener('click', () => { if (history.state && history.state.panel) history.back(); else { closePanel(); history.replaceState(null, '', location.pathname); } });
+
+function findTitle(re){ return SECTIONS.find(s => re.test(s.title)); }
+function renderMeds(){
+  $('#pTitle').textContent = 'Meds'; $('#pSub').textContent = 'Formulary and dosing pages';
+  const drugs = SECTIONS.filter(s => s.chapter && s.chapter.startsWith('Formulary'));
+  const quick = [findTitle(/Recommended Infusion Mixtures/i), findTitle(/^Push Dose/i), findTitle(/Medication Administration Cross Check/i), findTitle(/Blood Pressure Treatment Chart/i), findTitle(/LFN Medication Table/i)].filter(Boolean);
+  $('#pBody').innerHTML = `
+    <div class="searchbox" style="margin-bottom:12px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+      <input id="mq" type="search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Filter ${drugs.length} drugs"></div>
+    <div id="mquick"><div class="sec-label" style="margin-top:4px">Quick pages</div><div class="list">${quick.filter(s => !s.chapter.startsWith('Formulary')).map(s => itemHTML(s, 'p.' + pp(s.start) + ' · ' + esc(s.chapter))).join('')}</div></div>
+    <div class="sec-label">Drugs</div><div class="list" id="mlist"></div>`;
+  const draw = () => {
+    const q = norm($('#mq').value.trim());
+    const toks = tokenize(q);
+    const list = drugs.filter(s => !toks.length || titleScore(s, toks) > 0 || toks.every(t => s.key.includes(t)));
+    $('#mquick').classList.toggle('hidden', !!q);
+    $('#mlist').innerHTML = list.map(s => itemHTML(s, 'p.' + pp(s.start) + (s.end > s.start ? '–' + pp(s.end) : ''))).join('') || '<div class="empty">No drug matches. Use the main search to look inside protocols.</div>';
+  };
+  $('#mq').addEventListener('input', draw); draw();
+}
+
+function srcLink(page, label){
+  const s = sectionForPage(page);
+  return `<button class="src" data-i="${s ? s.i : ''}" data-p="${page}">Source: ${s ? esc(s.num + ' ' + s.title) : ''}, p.${pp(page)} ›</button>`;
+}
+function renderPeds(){
+  $('#pTitle').textContent = 'Pediatric quick reference'; $('#pSub').textContent = 'Values and formulas from your guidelines';
+  if (!PEDS){ $('#pBody').innerHTML = '<div class="empty">Pediatric reference data is not available.</div>'; return; }
+  const stale = DATA.version !== PEDS.verified_version;
+  const age0 = store.get('pedAge', ''), wt0 = store.get('pedWt', '');
+  $('#pBody').innerHTML = `
+    ${stale ? `<div class="warn"><b>Check before use:</b> these values were verified against version ${esc(PEDS.verified_version)}, but the loaded guidelines are version ${esc(DATA.version)}. Open each source page to confirm.</div>` : ''}
+    <div class="warn">A cross-check, not the authority. ${esc(PEDS.weight_note.text)} Calculated values aren't rounded to device settings.</div>
+    <div class="inputs">
+      <div class="field"><label for="pa">Age (years)</label><input id="pa" type="number" inputmode="decimal" min="0" max="17" step="any" placeholder="—" value="${esc(age0)}"></div>
+      <div class="field"><label for="pw">Weight (kg)</label><input id="pw" type="number" inputmode="decimal" min="0.5" max="150" step="any" placeholder="—" value="${esc(wt0)}"></div>
+    </div>
+    <div class="est" id="pest"></div>
+    <div id="pcards"></div>`;
+  const draw = () => {
+    const ageRaw = $('#pa').value.trim(), wtRaw = $('#pw').value.trim();
+    store.set('pedAge', ageRaw); store.set('pedWt', wtRaw);
+    const age = ageRaw === '' ? null : parseFloat(ageRaw);
+    let wt = wtRaw === '' ? null : parseFloat(wtRaw), est = false;
+    const chart = PEDS.ibw_by_age.kg;
+    if (wt == null && age != null){
+      const key = String(Math.round(age));
+      if (Number.isInteger(age) && chart[key] != null){ wt = chart[key]; est = true; }
+    }
+    $('#pest').innerHTML = wt == null
+      ? (age != null && wtRaw === '' ? 'No chart weight for this age (chart covers whole years 1–13). Enter a weight from Handtevy or the length-based tape.' : 'Enter weight for doses. Age alone uses the IBW chart for whole years 1–13.')
+      : (est ? `Using <b>${wt} kg</b>, the estimated IBW for age ${age} (${esc(PEDS.ibw_by_age.text)}, p.${pp(PEDS.ibw_by_age.page)}). Enter actual or tape weight if known.` : `Using <b>${fmt(wt)} kg</b>.`);
+    const W = wt != null && wt > 0 ? wt : null;
+    const wtag = W ? `${fmt(W)} kg${est ? ' (est.)' : ''}` : '';
+    const need = what => `<div class="dim">Enter ${what}.</div>`;
+    let h = '';
+    // Defibrillation
+    h += `<div class="card"><h3>Defibrillation</h3>${W ? `
+      <div class="row"><span class="k">1st shock · 2 J/kg</span><span class="v">${fmt(2 * W)} J</span></div>
+      <div class="row"><span class="k">2nd shock · 4 J/kg</span><span class="v">${fmt(4 * W)} J</span></div>
+      <div class="row"><span class="k">Subsequent · ≥ 4 J/kg</span><span class="v">≥ ${fmt(4 * W)} J</span></div>
+      <div class="row"><span class="k">Max · 10 J/kg <small>or adult dose</small></span><span class="v">${fmt(10 * W)} J</span></div>
+      <div class="row"><span class="k">Pads</span><span class="v" style="font-size:16px">${W <= 10 ? 'Infant/pediatric' : 'Adult/child'}</span></div>
+      <div class="calc">Weight ${wtag}. ${esc(PEDS.defib.text)} ${esc(PEDS.pads.text)}</div>` : need('weight')}
+      ${srcLink(PEDS.defib.page)}<br>${srcLink(PEDS.pads.page)}</div>`;
+    // Cardioversion
+    h += `<div class="card"><h3>Synchronized cardioversion</h3>${W ? `
+      <div class="row"><span class="k">Initial · 0.5–1 J/kg</span><span class="v">${fmt(0.5 * W)}–${fmt(W)} J</span></div>
+      <div class="row"><span class="k">If not effective · 2 J/kg</span><span class="v">${fmt(2 * W)} J</span></div>
+      <div class="calc">Weight ${wtag}. ${esc(PEDS.cardioversion.text)}</div>` : need('weight')}
+      ${srcLink(PEDS.cardioversion.page)}</div>`;
+    // Equipment
+    let eq = need('age');
+    if (age != null && age >= 0){
+      const ett = (age + 16) / 4, cuf = ett - 0.5;
+      eq = `
+      <div class="row"><span class="k">ETT uncuffed · (age+16)/4</span><span class="v">${fmt(ett, 2)}</span></div>
+      <div class="row"><span class="k">ETT cuffed · −0.5</span><span class="v">${fmt(cuf, 2)}</span></div>
+      <div class="row"><span class="k">ETT depth · 3× ETT</span><span class="v">${fmt(3 * cuf, 1)}–${fmt(3 * ett, 1)} <small>cm</small></span></div>
+      <div class="row"><span class="k">NG/OG/Foley · 2× ETT</span><span class="v">${fmt(2 * cuf, 1)}–${fmt(2 * ett, 1)} <small>Fr</small></span></div>
+      <div class="row"><span class="k">Chest tube · 4× ETT</span><span class="v">${fmt(4 * cuf, 1)}–${fmt(4 * ett, 1)} <small>Fr</small></span></div>
+      <div class="calc">Age ${fmt(age, 2)} y. Ranges use the cuffed and uncuffed size; the guideline says to use the size of the ETT actually placed. Values are exact, not rounded to available sizes. ${age < 1 ? '<b>Under 1 year: confirm with Handtevy.</b>' : ''}</div>`;
+    }
+    h += `<div class="card"><h3>Airway and tubes</h3>${eq}${srcLink(PEDS.equipment.page)}</div>`;
+    // Fluids
+    let fl = need('weight');
+    if (W){
+      const maint = W < 10 ? 4 * W : W <= 20 ? 40 + 2 * (W - 10) : 60 + (W - 20);
+      fl = `
+      <div class="row"><span class="k">Bolus · 20 mL/kg</span><span class="v">${fmt(20 * W, 0)} mL</span></div>
+      <div class="row"><span class="k">Bolus · 10 mL/kg</span><span class="v">${fmt(10 * W, 0)} mL</span></div>
+      <div class="row"><span class="k">Neonate max · 30 mL/kg</span><span class="v">${fmt(30 * W, 0)} mL</span></div>
+      <div class="row"><span class="k">Maintenance <small>(per hour)</small></span><span class="v">${fmt(maint, 0)} <small>mL/hr</small></span></div>
+      <div class="calc">Weight ${wtag}. Bolus volume depends on the protocol: ${PEDS.fluids.map(f => esc(f.text)).join(' ')} Maintenance formula as printed: ${esc(PEDS.maintenance.text)}</div>`;
+    }
+    h += `<div class="card"><h3>Fluids</h3>${fl}${PEDS.fluids.map(f => srcLink(f.page)).join('<br>')}<br>${srcLink(PEDS.maintenance.page)}</div>`;
+    // SBP
+    let bp = need('age');
+    if (age != null){
+      bp = age < 10 ? `
+      <div class="row"><span class="k">Normal / head injury · 90 + 2×age</span><span class="v">&gt; ${fmt(90 + 2 * age, 0)} <small>mmHg</small></span></div>
+      <div class="row"><span class="k">Hemorrhagic shock</span><span class="v">&gt; 80 <small>mmHg</small></span></div>
+      <div class="calc">${esc(PEDS.sbp.text)}</div>` : `<div class="dim">Age 10 or older: use the adult targets on the source page.</div>`;
+    }
+    h += `<div class="card"><h3>Systolic BP targets</h3>${bp}${srcLink(PEDS.sbp.page)}</div>`;
+    h += `<div class="card"><h3>Estimated weight by age</h3><div class="calc" style="margin-top:0">${esc(PEDS.ibw_by_age.text)}: ` +
+      Object.entries(chart).map(([a, k]) => `${a} y = ${k} kg`).join(' · ') + `</div>${srcLink(PEDS.ibw_by_age.page)}<br>${srcLink(PEDS.weight_note.page)}</div>`;
+    h += `<div class="calc" style="text-align:center">${esc(PEDS.max_adult.text)}</div>`;
+    $('#pcards').innerHTML = h;
+  };
+  $('#pa').addEventListener('input', draw); $('#pw').addEventListener('input', draw); draw();
+}
+
+function renderChanges(){
+  $('#pTitle').textContent = 'What changed';
+  const summary = DATA && SECTIONS.find(s => s.num === DATA.version);
+  if (!CHANGES){
+    $('#pSub').textContent = 'Version ' + (DATA ? DATA.version : '');
+    $('#pBody').innerHTML = `<div class="empty">No comparison with an earlier version is available.</div>${summary ? `<button class="btn" data-i="${summary.i}">Open the official update summary</button>` : ''}`;
+    return;
+  }
+  $('#pSub').textContent = `${CHANGES.from} → ${CHANGES.to}`;
+  let h = `<div class="warn">${CHANGES.sections.length} sections have different text in ${esc(CHANGES.to)} than in ${esc(CHANGES.from)}. This compares the text only, so changes inside flowchart images won't show here. Check the official summary as well.</div>`;
+  if (summary) h += `<button class="btn" data-i="${summary.i}">Official update summary (${esc(DATA.version)})</button>`;
+  for (const c of CHANGES.sections){
+    const s = SECTIONS.find(x => x.num === c.num && x.title === c.title) || SECTIONS.find(x => x.num === c.num);
+    const lines = c.removed.map(l => `<div class="dl r">${esc(l)}</div>`).join('') + c.added.map(l => `<div class="dl a">${esc(l)}</div>`).join('');
+    h += `<div class="chg"><button class="chg-h" ${s && c.status !== 'removed' ? `data-i="${s.i}"` : ''}><span class="num">${esc(c.num)}</span><span class="it-main"><div class="it-title">${esc(c.title)}</div></span><span class="st">${esc(c.status)}</span>${s && c.status !== 'removed' ? chev : ''}</button>
+      ${lines ? `<div class="chg-b">${lines}</div>` : ''}</div>`;
+  }
+  $('#pBody').innerHTML = h;
+}
+
+// ---------- global clicks ----------
 document.addEventListener('click', e => {
+  const go = e.target.closest('[data-go]');
+  if (go){ openPanel(go.dataset.go, true); return; }
   const it = e.target.closest('[data-i]');
-  if (it){ openSection(+it.dataset.i, it.dataset.p ? +it.dataset.p : null, true); return; }
+  if (it && it.dataset.i !== ''){ openSection(+it.dataset.i, it.dataset.p ? +it.dataset.p : null, true, !!e.target.closest('#results')); return; }
   const ch = e.target.closest('[data-chap]');
   if (ch){ const c = ch.dataset.chap; openChaps.has(c) ? openChaps.delete(c) : openChaps.add(c); renderHome(); return; }
   if (e.target.id === 'theme'){
@@ -329,19 +545,28 @@ function applyTheme(){
 }
 applyTheme();
 
-// ---------- pdf ----------
+// ---------- pdf viewer ----------
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
 let pdfDoc = null;
-const pdfReady = pdfjsLib.getDocument({url: 'guidelines.pdf', disableAutoFetch: false}).promise.then(d => (pdfDoc = d));
+const pdfReady = pdfjsLib.getDocument({url: 'guidelines.pdf'}).promise.then(d => (pdfDoc = d));
 pdfReady.catch(() => {});
 
+function sectionForPage(p){
+  let best = null;
+  for (const s of SECTIONS){
+    if (s.start <= p && p <= s.end){
+      if (!best || (s.end - s.start) < (best.end - best.start) || (s.start === p && best.start !== p)) best = s;
+    }
+  }
+  return best;
+}
 let cur = null, renderToken = 0, observer = null;
-function openSection(i, page, push){
+function openSection(i, page, push, fromSearch){
   const s = SECTIONS[i]; if (!s) return;
-  cur = {s, page};
+  cur = {s, page, terms: fromSearch ? hlTerms() : []};
   recent = [s.num, ...recent.filter(n => n !== s.num)].slice(0, 12); store.set('recent', recent);
   if (push) history.pushState({sec: s.num, page}, '', '#' + encodeURIComponent(s.num) + (page ? '@' + page : ''));
-  $('#vNum').textContent = s.num + ' · ' + s.chapter;
+  $('#vNum').textContent = s.num + ' · ' + s.chapter + (CHANGED.has(s.num) ? ' · updated in ' + DATA.version : '');
   $('#vTitle').textContent = s.title;
   updateStar();
   const prev = SECTIONS[i - 1], next = SECTIONS[i + 1];
@@ -353,15 +578,13 @@ function openSection(i, page, push){
   buildPages();
 }
 function closeViewer(){
-  $('#viewer').classList.add('hidden'); document.body.style.overflow = ''; cur = null; renderToken++;
+  $('#viewer').classList.add('hidden'); cur = null; renderToken++;
+  if (!panel) document.body.style.overflow = '';
   if (observer) observer.disconnect();
   $('#pages').innerHTML = '';
-  if (!DATA) return; if (!$('#q').value) renderHome();
+  if (DATA && !$('#q').value) renderHome();
 }
-function hlTerms(){
-  const q = $('#q').value; const toks = norm(q).split(/[^a-z0-9.\-]+/).filter(t => t.length >= 2);
-  return toks.flatMap(expand).filter(a => a.length >= 2);
-}
+function hlTerms(){ return tokenize($('#q').value).filter(t => t.length >= 2).flatMap(expand).filter(a => a.length >= 2); }
 async function buildPages(){
   const tok = ++renderToken;
   const box = $('#pages');
@@ -369,10 +592,11 @@ async function buildPages(){
   if (observer) observer.disconnect();
   try { await pdfReady; } catch(e){ box.innerHTML = '<div class="status">Could not load the document.</div>'; return; }
   if (tok !== renderToken) return;
-  const {s, page} = cur;
+  const {s, page, terms} = cur;
   box.innerHTML = '';
   const width = Math.min(box.clientWidth - 16, 900) * zoom;
   const first = await pdfDoc.getPage(s.start);
+  if (tok !== renderToken) return;
   const vp1 = first.getViewport({scale: 1});
   const scale = width / vp1.width;
   const els = [];
@@ -380,10 +604,9 @@ async function buildPages(){
     const d = document.createElement('div');
     d.className = 'pg'; d.dataset.p = p;
     d.style.width = width + 'px'; d.style.height = (vp1.height * scale) + 'px';
-    d.innerHTML = `<span class="pno">p.${p - 1}</span>`;
+    d.innerHTML = `<span class="pno">p.${pp(p)}</span>`;
     box.appendChild(d); els.push(d);
   }
-  const terms = hlTerms();
   observer = new IntersectionObserver(ents => {
     for (const en of ents) if (en.isIntersecting && !en.target.dataset.done){
       en.target.dataset.done = '1'; renderPage(en.target, scale, terms, tok);
@@ -392,7 +615,7 @@ async function buildPages(){
   els.forEach(e => observer.observe(e));
   const target = page ? els.find(e => +e.dataset.p === page) : null;
   box.scrollTop = 0;
-  if (target){ target.dataset.scroll = '1'; box.scrollTop = target.offsetTop - 8; }
+  if (target){ if (terms.length) target.dataset.scroll = '1'; box.scrollTop = target.offsetTop - 8; }
 }
 async function renderPage(el, scale, terms, tok){
   const page = await pdfDoc.getPage(+el.dataset.p);
@@ -403,7 +626,9 @@ async function renderPage(el, scale, terms, tok){
   c.width = Math.floor(vp.width * dpr); c.height = Math.floor(vp.height * dpr);
   el.prepend(c);
   await page.render({canvasContext: c.getContext('2d'), viewport: vp, transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : null}).promise;
-  if (!terms.length || tok !== renderToken) return;
+  if (tok !== renderToken) return;
+  addLinks(el, page, vp, tok);
+  if (!terms.length) return;
   const tc = await page.getTextContent();
   let firstHl = null;
   for (const it of tc.items){
@@ -416,7 +641,40 @@ async function renderPage(el, scale, terms, tok){
     d.style.width = (it.width * scale) + 'px'; d.style.height = (h * 1.15) + 'px';
     el.appendChild(d); if (!firstHl) firstHl = d;
   }
-  if (firstHl && el.dataset.scroll){ delete el.dataset.scroll; const box = $('#pages'); box.scrollTop = el.offsetTop + firstHl.offsetTop - 120; }
+  if (firstHl && el.dataset.scroll){ delete el.dataset.scroll; $('#pages').scrollTop = el.offsetTop + firstHl.offsetTop - 120; }
+}
+// Make the PDF's own hyperlinks work: internal ones jump to the page they point at.
+async function addLinks(el, page, vp, tok){
+  let annots;
+  try { annots = await page.getAnnotations({intent: 'display'}); } catch(e){ return; }
+  if (tok !== renderToken) return;
+  for (const a of annots){
+    if (a.subtype !== 'Link' || (!a.dest && !a.url)) continue;
+    const [x1, y1, x2, y2] = vp.convertToViewportRectangle(a.rect);
+    const l = document.createElement('a'); l.className = 'lnk';
+    l.style.left = Math.min(x1, x2) + 'px'; l.style.top = Math.min(y1, y2) + 'px';
+    l.style.width = Math.abs(x2 - x1) + 'px'; l.style.height = Math.abs(y2 - y1) + 'px';
+    if (a.url){ l.href = a.url; l.target = '_blank'; l.rel = 'noopener'; l.setAttribute('aria-label', 'Open external link'); }
+    else {
+      l.href = '#'; l.setAttribute('aria-label', 'Go to linked page');
+      l.addEventListener('click', ev => { ev.preventDefault(); l.classList.add('flash'); followDest(a.dest); });
+    }
+    el.appendChild(l);
+  }
+}
+async function followDest(dest){
+  try {
+    const d = typeof dest === 'string' ? await pdfDoc.getDestination(dest) : dest;
+    if (!d) return;
+    const p = (typeof d[0] === 'object' ? await pdfDoc.getPageIndex(d[0]) : d[0]) + 1;
+    const s = sectionForPage(p);
+    if (!s) return;
+    if (cur && cur.s.i === s.i){
+      const t = $('#pages').querySelector(`.pg[data-p="${p}"]`); if (t) $('#pages').scrollTop = t.offsetTop - 8;
+      return;
+    }
+    openSection(s.i, p === s.start ? null : p, true, false);
+  } catch(e){}
 }
 function updateStar(){
   const on = cur && favs.includes(cur.s.num);
@@ -427,9 +685,10 @@ $('#vStar').addEventListener('click', () => {
   if (!cur) return; const n = cur.s.num;
   favs = favs.includes(n) ? favs.filter(x => x !== n) : [...favs, n]; store.set('favs', favs); updateStar();
 });
-$('#vBack').addEventListener('click', () => { if (history.state && history.state.sec) history.back(); else closeViewer(); });
-$('#vPrev').addEventListener('click', () => { if (cur) openSection(cur.s.i - 1, null, false); history.replaceState({sec: cur.s.num}, '', '#' + encodeURIComponent(cur.s.num)); });
-$('#vNext').addEventListener('click', () => { if (cur) openSection(cur.s.i + 1, null, false); history.replaceState({sec: cur.s.num}, '', '#' + encodeURIComponent(cur.s.num)); });
+$('#vBack').addEventListener('click', () => { if (history.state && history.state.sec) history.back(); else { closeViewer(); history.replaceState(panel ? {panel} : null, '', panel ? '#' + panel : location.pathname); } });
+function step(d){ if (!cur) return; const i = cur.s.i + d; if (!SECTIONS[i]) return; openSection(i, null, false, false); history.replaceState({sec: cur.s.num}, '', '#' + encodeURIComponent(cur.s.num)); }
+$('#vPrev').addEventListener('click', () => step(-1));
+$('#vNext').addEventListener('click', () => step(1));
 $('#vNight').addEventListener('click', () => { store.set('night', !store.get('night', false)); applyTheme(); });
 function setZoom(z){ zoom = Math.max(1, Math.min(3, z)); store.set('zoom', zoom); if (cur){ cur.page = currentPage(); buildPages(); } }
 function currentPage(){ const box = $('#pages'); const els = [...box.querySelectorAll('.pg')]; const top = box.scrollTop + 40; let p = null; for (const e of els) if (e.offsetTop <= top) p = +e.dataset.p; return p; }
@@ -437,22 +696,38 @@ $('#zIn').addEventListener('click', () => setZoom(zoom + 0.5));
 $('#zOut').addEventListener('click', () => setZoom(zoom - 0.5));
 let rsz; window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(() => { if (cur){ cur.page = currentPage(); buildPages(); } }, 250); });
 
+// ---------- routing ----------
 function route(){
-  const m = decodeURIComponent(location.hash.slice(1)).match(/^([\w.]+)(?:@(\d+))?$/);
+  if (!DATA) return;
+  const h = decodeURIComponent(location.hash.slice(1));
+  const st = history.state || {};
+  if (['meds', 'peds', 'changes'].includes(h)){ if (cur) closeViewer(); if (panel !== h) openPanel(h, false); return; }
+  const m = h.match(/^([\w.]+)(?:@(\d+))?$/);
   const s = m && SECTIONS.find(x => x.num === m[1]);
-  if (s) openSection(s.i, m[2] ? +m[2] : null, false); else if (cur) closeViewer();
+  if (s){ if (!cur || cur.s.i !== s.i) openSection(s.i, m[2] ? +m[2] : null, false, false); return; }
+  if (cur) closeViewer();
+  if (panel) closePanel();
 }
 window.addEventListener('popstate', route);
 
-// ---------- offline ----------
-let offlineMsg = '';
+// ---------- offline + updates ----------
+function toast(msg, onTap){
+  const t = document.createElement('button'); t.className = 'toast'; t.textContent = msg;
+  t.addEventListener('click', () => { t.remove(); if (onTap) onTap(); });
+  document.body.appendChild(t);
+}
 if ('serviceWorker' in navigator && location.protocol !== 'file:'){
-  navigator.serviceWorker.register('sw.js').then(() => navigator.serviceWorker.ready).then(() => {
-    caches.has && caches.keys().then(keys => Promise.all(keys.map(k => caches.open(k).then(c => c.match('guidelines.pdf'))))).then(r => {
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw.js').then(() => navigator.serviceWorker.ready).then(() =>
+    caches.keys().then(keys => Promise.all(keys.map(k => caches.open(k).then(c => c.match('guidelines.pdf'))))).then(r => {
       offlineMsg = r.some(Boolean) ? '✓ Available offline' : 'Downloading for offline use…'; renderFoot(offlineMsg);
-    });
-  }).catch(() => {});
-  navigator.serviceWorker.addEventListener('message', e => { if (e.data === 'cached'){ offlineMsg = '✓ Available offline'; renderFoot(offlineMsg); } });
+    })
+  ).catch(() => {});
+  navigator.serviceWorker.addEventListener('message', e => {
+    if (e.data !== 'cached') return;
+    offlineMsg = '✓ Available offline'; renderFoot(offlineMsg);
+    if (hadController) toast('New guidelines version downloaded. Tap to reload.', () => location.reload());
+  });
 }
 })();
 </script>
