@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0f172a">
+<meta name="theme-color" content="#10151c">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Protocols">
@@ -13,27 +13,27 @@
 <title>Protocol Finder</title>
 <style>
 :root{
-  --bg:#f6f7f9; --surface:#fff; --text:#0f172a; --muted:#5b6475; --line:#e3e6eb;
-  --accent:#c2410c; --accent-soft:#fff1e8; --mark:#fde68a; --chip:#eef1f5;
-  --add:#e7f6ec; --add-text:#14532d; --rem:#fdecec; --rem-text:#7f1d1d; --warn:#fff7e0; --warn-text:#713f12;
-  --page-filter:none;
-}
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --bg:#0b1020; --surface:#141a2c; --text:#e7eaf0; --muted:#98a1b3; --line:#252d43;
-    --accent:#fb923c; --accent-soft:#2a1a10; --mark:#7c5d00; --chip:#1e2639;
-    --add:#0f2a1a; --add-text:#9be2b4; --rem:#2e1414; --rem-text:#f5aaaa; --warn:#2b230d; --warn-text:#f3d58a;
-  }
-}
-:root[data-theme="dark"]{
-  --bg:#0b1020; --surface:#141a2c; --text:#e7eaf0; --muted:#98a1b3; --line:#252d43;
-  --accent:#fb923c; --accent-soft:#2a1a10; --mark:#7c5d00; --chip:#1e2639;
+  --bg:#10151c; --surface:#1c2430; --text:#f3f6fa; --muted:#9aa6b8; --line:#2a3442;
+  --accent:#4c9bff; --accent-soft:#16263d; --mark:#ffd43b; --mark-text:#10151c; --chip:#26303e;
+  --field:#f3f6fa; --field-text:#10151c; --field-muted:#4f5b6b; --field-line:#f3f6fa;
+  --c-prot:#4c9bff; --c-meds:#ffa94d; --c-peds:#3ee0c4; --c-calc:#c4a6ff; --c-ink:#0b1320;
   --add:#0f2a1a; --add-text:#9be2b4; --rem:#2e1414; --rem-text:#f5aaaa; --warn:#2b230d; --warn-text:#f3d58a;
+  --page-filter:none; color-scheme:dark;
 }
+:root[data-theme="light"]{
+  --bg:#f3f6fa; --surface:#ffffff; --text:#10151c; --muted:#4f5b6b; --line:#dde3eb;
+  --accent:#1f6fe0; --accent-soft:#e6f0ff; --mark:#ffd43b; --mark-text:#10151c; --chip:#e9eef4;
+  --field:#ffffff; --field-text:#10151c; --field-muted:#4f5b6b; --field-line:#1f6fe0;
+  --c-prot:#1f6fe0; --c-meds:#e8590c; --c-peds:#0f9e8a; --c-calc:#7c4ddb; --c-ink:#ffffff;
+  --add:#e7f6ec; --add-text:#14532d; --rem:#fdecec; --rem-text:#7f1d1d; --warn:#fff7e0; --warn-text:#713f12;
+  color-scheme:light;
+}
+@font-face{font-family:"Atkinson Hyperlegible";font-weight:400;font-style:normal;font-display:swap;src:url(fonts/atkinson-400.woff2) format("woff2")}
+@font-face{font-family:"Atkinson Hyperlegible";font-weight:700;font-style:normal;font-display:swap;src:url(fonts/atkinson-700.woff2) format("woff2")}
 :root[data-night="1"]{ --page-filter: invert(0.92) hue-rotate(180deg); }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
-body{background:var(--bg);color:var(--text);font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%;}
+body{background:var(--bg);color:var(--text);font:16px/1.4 "Atkinson Hyperlegible",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%;}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
 input{font:inherit;color:inherit}
 .hidden{display:none!important}
@@ -41,43 +41,47 @@ input{font:inherit;color:inherit}
 /* search view */
 #searchView{max-width:720px;margin:0 auto;padding:0 16px calc(24px + env(safe-area-inset-bottom))}
 .searchbar{position:sticky;top:0;z-index:5;background:var(--bg);padding:calc(10px + env(safe-area-inset-top)) 0 10px}
-.searchbox{display:flex;align-items:center;gap:8px;background:var(--surface);border:2px solid var(--line);border-radius:14px;padding:0 6px 0 14px;height:54px}
-.searchbox:focus-within{border-color:var(--accent)}
-.searchbox svg{flex:none;color:var(--muted)}
-.searchbox input{flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--text);font-size:19px;height:100%}
-.searchbox input::placeholder{color:var(--muted)}
+.searchbox{display:flex;align-items:center;gap:10px;background:var(--field);color:var(--field-text);border:2px solid var(--field-line);border-radius:16px;padding:0 6px 0 16px;height:60px}
+.searchbox:focus-within{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.searchbox svg{flex:none;color:var(--field-text)}
+.searchbox input{flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--field-text);font-size:19px;font-weight:700;height:100%}
+.searchbox input::placeholder{color:var(--field-muted);font-weight:400}
 input[type=search]::-webkit-search-cancel-button,input[type=search]::-webkit-search-decoration{-webkit-appearance:none;display:none}
-.clear{width:40px;height:40px;border-radius:10px;color:var(--muted);font-size:22px}
-.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
-.hero{display:none;text-align:center;font-weight:800;font-size:28px;letter-spacing:-.01em;margin:0 0 14px}
-.hero small{display:block;font-size:13px;font-weight:500;color:var(--muted);letter-spacing:0;margin-top:2px}
-body.landing .searchbar{position:static;padding-top:calc(12vh + env(safe-area-inset-top));padding-bottom:16px}
-body.landing .hero{display:block}
-body.landing .searchbox{height:64px;border-radius:18px;box-shadow:0 4px 18px rgba(15,23,42,.08)}
-body.landing .searchbox input{font-size:20px}
-.tile{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 8px;min-height:96px;font-size:16.5px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-weight:600;font-size:15px;position:relative}
+.clear{width:46px;height:46px;border-radius:12px;color:var(--field-text);font-size:26px;flex:none}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+.hero{display:none;align-items:center;justify-content:space-between;gap:12px;margin:0 0 16px}
+.hero b{display:block;font-weight:700;font-size:24px;letter-spacing:-.01em;line-height:1.15}
+.hero small{display:block;font-size:13px;color:var(--muted);margin-top:2px;letter-spacing:.02em}
+.hero .ibtn{border:1px solid var(--line);color:var(--accent)}
+body.landing .searchbar{position:static;padding-top:calc(20px + env(safe-area-inset-top));padding-bottom:14px}
+body.landing .hero{display:flex}
+.tile{background:var(--surface);border:0;border-radius:16px;padding:14px;min-height:96px;display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:10px;font-weight:700;font-size:18px;position:relative;text-align:left}
 .tile:active{background:var(--chip)}
-.tile svg{color:var(--accent)}
+.tile .ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;color:var(--c-ink)}
+.tile[data-go="protocols"] .ic{background:var(--c-prot)}
+.tile[data-go="meds"] .ic{background:var(--c-meds)}
+.tile[data-go="peds"] .ic{background:var(--c-peds)}
+.tile[data-go="calc"] .ic{background:var(--c-calc)}
 .badge{position:absolute;top:6px;right:8px;background:var(--accent);color:#fff;font-size:11px;font-weight:700;border-radius:999px;padding:1px 6px}
-.sec-label{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:18px 2px 8px}
-.list{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
-.item{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:13px 14px;border-top:1px solid var(--line);min-height:56px}
+.sec-label{font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:22px 0 6px}
+.list{border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.item{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:13px 2px;border-top:1px solid var(--line);min-height:60px}
 .item:first-child{border-top:0}
 .item:active{background:var(--chip)}
-.num{flex:none;font:600 13px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--accent);background:var(--accent-soft);border-radius:7px;padding:6px 7px;min-width:52px;text-align:center}
+.num{flex:none;font-weight:700;font-size:15px;line-height:1;font-variant-numeric:tabular-nums;color:var(--accent);min-width:50px;align-self:flex-start;padding-top:3px}
 .it-main{flex:1;min-width:0}
-.it-title{font-weight:600;font-size:16.5px}
-.it-sub{font-size:13.5px;color:var(--muted);margin-top:2px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}
-.it-sub mark,.it-title mark{background:var(--mark);color:inherit;border-radius:3px;padding:0 1px}
+.it-title{font-weight:700;font-size:17px}
+.it-sub{font-size:14.5px;line-height:1.4;color:var(--muted);margin-top:3px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}
+.it-sub mark,.it-title mark{background:var(--mark);color:var(--mark-text);font-weight:700;border-radius:4px;padding:0 3px}
 .upd{display:inline-block;font-size:11px;font-weight:700;color:var(--accent);border:1px solid var(--accent);border-radius:999px;padding:0 6px;margin-left:6px;vertical-align:2px}
 .chev{flex:none;color:var(--muted)}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
-.chip{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:9px 14px;font-size:15px;font-weight:500;min-height:42px}
+.chip{background:var(--surface);border:0;border-radius:999px;padding:9px 16px;font-size:16px;font-weight:700;min-height:46px}
 .chip:active{background:var(--chip)}
-.chap{display:flex;justify-content:space-between;align-items:center;width:100%;padding:15px 14px;border-top:1px solid var(--line);font-weight:600;min-height:54px}
+.chap{display:flex;justify-content:space-between;align-items:center;width:100%;padding:15px 2px;font-size:17px;border-top:1px solid var(--line);font-weight:600;min-height:54px}
 .chap:first-child{border-top:0}
 .chap .cnt{color:var(--muted);font-weight:400;font-size:14px}
-.chap-body .item{padding-left:20px}
+.chap-body .item{padding-left:12px}
 .empty{color:var(--muted);text-align:center;padding:26px 10px}
 .foot{color:var(--muted);font-size:12.5px;text-align:center;margin:26px 0 8px;line-height:1.6}
 .foot button{text-decoration:underline;color:var(--muted)}
@@ -136,14 +140,14 @@ body.landing .searchbox input{font-size:20px}
 .dl{padding:4px 8px;border-radius:6px;margin-top:3px;line-height:1.4}
 .dl.a{background:var(--add);color:var(--add-text)}
 .dl.r{background:var(--rem);color:var(--rem-text);text-decoration:line-through;text-decoration-thickness:1px}
-.btn{display:block;width:100%;text-align:center;background:var(--accent);color:#fff;border-radius:12px;padding:13px;font-weight:700;margin:10px 0}
+.btn{display:block;width:100%;text-align:center;background:var(--accent);color:var(--c-ink);border-radius:12px;padding:13px;font-weight:700;margin:10px 0}
 .btn.ghost{background:var(--chip);color:var(--text)}
 </style>
 </head>
 <body class="landing">
 <main id="searchView">
   <div class="searchbar">
-    <div class="hero">Protocol Finder<small id="heroSub">Patient Care Guidelines</small></div>
+    <div class="hero"><div><b>Protocol Finder</b><small id="heroSub">Patient Care Guidelines</small></div><button class="ibtn" id="themeBtn" aria-label="Switch light or dark"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg></button></div>
     <div class="searchbox">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
       <input id="q" type="search" inputmode="search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search protocols, drugs, procedures" enterkeyhint="search" autofocus>
@@ -345,7 +349,7 @@ function render(){
   $('#results').innerHTML = h;
 }
 const ICON = {
-  meds: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="9" width="18" height="7" rx="3.5" transform="rotate(-45 12 12.5)"/><path d="M9.5 10l4.5 4.5"/></svg>',
+  meds: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="9" width="18" height="7" rx="3.5" transform="rotate(-45 12 12.5)"/><path d="M9.5 10l4.5 4.5"/></svg>',
   peds: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2.5"/><path d="M12 8v7M8 11h8M9.5 21l2.5-6 2.5 6"/></svg>',
   list: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>',
   calc: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h2M12 11h0M16 11h0M8 15h2M12 15h0M16 15v3M8 18.5h0M12 18.5h0"/></svg>',
@@ -353,14 +357,14 @@ const ICON = {
 };
 function renderHome(){
   let h = '<div class="tiles">' +
-    `<button class="tile" data-go="protocols">${ICON.list}Protocols</button>` +
-    `<button class="tile" data-go="meds">${ICON.meds}Meds</button>` +
-    `<button class="tile" data-go="peds">${ICON.peds}Peds</button>` +
-    `<button class="tile" data-go="calc">${ICON.calc}Calculators</button>` +
+    `<button class="tile" data-go="protocols"><span class="ic">${ICON.list}</span>Protocols</button>` +
+    `<button class="tile" data-go="meds"><span class="ic">${ICON.meds}</span>Meds</button>` +
+    `<button class="tile" data-go="peds"><span class="ic">${ICON.peds}</span>Peds</button>` +
+    `<button class="tile" data-go="calc"><span class="ic">${ICON.calc}</span>Calculators</button>` +
     '</div>';
   const favS = favs.map(n => SECTIONS.find(s => s.num === n)).filter(Boolean);
   h += favS.length
-    ? '<div class="sec-label">Favorites</div><div class="chips">' + favS.map(s => `<button class="chip" data-i="${s.i}">${esc(s.title)}</button>`).join('') + '</div>'
+    ? '<div class="sec-label">Favorites</div><div class="list">' + favS.map(s => itemHTML(s, '')).join('') + '</div>'
     : '<div class="empty" style="padding:18px 4px 0">Tap ☆ on any protocol to pin it here.</div>';
   $('#home').innerHTML = h;
 }
@@ -384,7 +388,7 @@ function renderCalc(){
 let offlineMsg = '';
 function renderFoot(state){
   const v = DATA ? DATA.version : '';
-  $('#foot').innerHTML = `Patient Care Guidelines${v ? ' · Version ' + esc(v) : ''}<br>Shows the original document pages, unaltered.<br>${state || ''}<br><button id="theme">Theme: ${esc(store.get('theme', 'auto'))}</button>`;
+  $('#foot').innerHTML = `Patient Care Guidelines${v ? ' · Version ' + esc(v) : ''}<br>Shows the original document pages, unaltered.<br>${state || ''}<br><button id="theme">Theme: ${store.get('theme', 'dark') === 'light' ? 'light' : 'dark'}</button>`;
 }
 renderFoot('');
 
@@ -544,8 +548,8 @@ document.addEventListener('click', e => {
   if (it && it.dataset.i !== ''){ openSection(+it.dataset.i, it.dataset.p ? +it.dataset.p : null, true, !!e.target.closest('#results')); return; }
   const ch = e.target.closest('[data-chap]');
   if (ch){ const c = ch.dataset.chap; openChaps.has(c) ? openChaps.delete(c) : openChaps.add(c); const y = $('#pBody').scrollTop; renderProtocols(); $('#pBody').scrollTop = y; return; }
-  if (e.target.id === 'theme'){
-    const order = ['auto', 'light', 'dark']; const t = order[(order.indexOf(store.get('theme', 'auto')) + 1) % 3];
+  if (e.target.id === 'theme' || e.target.closest('#themeBtn')){
+    const t = store.get('theme', 'dark') === 'light' ? 'dark' : 'light';
     store.set('theme', t); applyTheme(); renderFoot(offlineMsg);
   }
 });
@@ -557,7 +561,8 @@ $('#q').addEventListener('keydown', e => {
 $('#clear').addEventListener('click', () => { $('#q').value = ''; render(); $('#q').focus(); });
 function applyTheme(){
   const t = store.get('theme', 'auto');
-  if (t === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.dataset.theme = t;
+  if (t === 'light') document.documentElement.dataset.theme = 'light'; else document.documentElement.removeAttribute('data-theme');
+  const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = t === 'light' ? '#f3f6fa' : '#10151c';
   if (store.get('night', false)) document.documentElement.dataset.night = '1'; else document.documentElement.removeAttribute('data-night');
   $('#vNight').classList.toggle('on', !!store.get('night', false));
 }
