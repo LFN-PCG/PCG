@@ -48,8 +48,14 @@ input{font:inherit;color:inherit}
 .searchbox input::placeholder{color:var(--muted)}
 input[type=search]::-webkit-search-cancel-button,input[type=search]::-webkit-search-decoration{-webkit-appearance:none;display:none}
 .clear{width:40px;height:40px;border-radius:10px;color:var(--muted);font-size:22px}
-.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px}
-.tile{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 8px;min-height:74px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-weight:600;font-size:15px;position:relative}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+.hero{display:none;text-align:center;font-weight:800;font-size:28px;letter-spacing:-.01em;margin:0 0 14px}
+.hero small{display:block;font-size:13px;font-weight:500;color:var(--muted);letter-spacing:0;margin-top:2px}
+body.landing .searchbar{position:static;padding-top:calc(12vh + env(safe-area-inset-top));padding-bottom:16px}
+body.landing .hero{display:block}
+body.landing .searchbox{height:64px;border-radius:18px;box-shadow:0 4px 18px rgba(15,23,42,.08)}
+body.landing .searchbox input{font-size:20px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 8px;min-height:96px;font-size:16.5px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-weight:600;font-size:15px;position:relative}
 .tile:active{background:var(--chip)}
 .tile svg{color:var(--accent)}
 .badge{position:absolute;top:6px;right:8px;background:var(--accent);color:#fff;font-size:11px;font-weight:700;border-radius:999px;padding:1px 6px}
@@ -134,9 +140,10 @@ input[type=search]::-webkit-search-cancel-button,input[type=search]::-webkit-sea
 .btn.ghost{background:var(--chip);color:var(--text)}
 </style>
 </head>
-<body>
+<body class="landing">
 <main id="searchView">
   <div class="searchbar">
+    <div class="hero">Protocol Finder<small id="heroSub">Patient Care Guidelines</small></div>
     <div class="searchbox">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
       <input id="q" type="search" inputmode="search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search protocols, drugs, procedures" enterkeyhint="search" autofocus>
@@ -318,14 +325,14 @@ function search(q){
 // ---------- rendering (lists) ----------
 const chev = '<svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m9 6 6 6-6 6"/></svg>';
 function itemHTML(s, sub, page){
-  const upd = CHANGED.has(s.num) ? '<span class="upd">updated</span>' : '';
-  return `<button class="item" data-i="${s.i}"${page ? ` data-p="${page}"` : ''}><span class="num">${esc(s.num.length > 6 ? s.num.slice(2) : s.num)}</span><span class="it-main"><div class="it-title">${esc(s.title)}${upd}</div>${sub ? `<div class="it-sub">${sub}</div>` : ''}</span>${chev}</button>`;
+  return `<button class="item" data-i="${s.i}"${page ? ` data-p="${page}"` : ''}><span class="num">${esc(s.num.length > 6 ? s.num.slice(2) : s.num)}</span><span class="it-main"><div class="it-title">${esc(s.title)}</div>${sub ? `<div class="it-sub">${sub}</div>` : ''}</span>${chev}</button>`;
 }
 function render(){
   if (!DATA) return;
   const q = $('#q').value;
   $('#clear').classList.toggle('hidden', !q);
   const r = search(q);
+  document.body.classList.toggle('landing', !r);
   if (!r){ $('#results').innerHTML = ''; $('#home').classList.remove('hidden'); renderHome(); return; }
   $('#home').classList.add('hidden');
   let h = '';
@@ -340,20 +347,26 @@ function render(){
 const ICON = {
   meds: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="9" width="18" height="7" rx="3.5" transform="rotate(-45 12 12.5)"/><path d="M9.5 10l4.5 4.5"/></svg>',
   peds: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2.5"/><path d="M12 8v7M8 11h8M9.5 21l2.5-6 2.5 6"/></svg>',
+  list: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>',
+  calc: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h2M12 11h0M16 11h0M8 15h2M12 15h0M16 15v3M8 18.5h0M12 18.5h0"/></svg>',
   chg: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h11M4 12h7M4 17h9"/><path d="M17 14l2 2 3-4"/></svg>',
 };
 function renderHome(){
   let h = '<div class="tiles">' +
+    `<button class="tile" data-go="protocols">${ICON.list}Protocols</button>` +
     `<button class="tile" data-go="meds">${ICON.meds}Meds</button>` +
     `<button class="tile" data-go="peds">${ICON.peds}Peds</button>` +
-    `<button class="tile" data-go="changes">${ICON.chg}Changes${CHANGES && CHANGES.sections.length ? `<span class="badge">${CHANGES.sections.length}</span>` : ''}</button>` +
+    `<button class="tile" data-go="calc">${ICON.calc}Calculators</button>` +
     '</div>';
   const favS = favs.map(n => SECTIONS.find(s => s.num === n)).filter(Boolean);
-  if (favS.length) h += '<div class="sec-label">Favorites</div><div class="chips">' + favS.map(s => `<button class="chip" data-i="${s.i}">${esc(s.title)}</button>`).join('') + '</div>';
-  const recS = recent.map(n => SECTIONS.find(s => s.num === n)).filter(Boolean).slice(0, 6);
-  if (recS.length) h += '<div class="sec-label">Recent</div><div class="list">' + recS.map(s => itemHTML(s, esc(s.chapter))).join('') + '</div>';
-  if (!favS.length) h += '<div class="sec-label">Tip</div><div class="empty" style="padding:10px 4px;text-align:left">Tap ☆ on any protocol to pin it here for one-tap access.</div>';
-  h += '<div class="sec-label">Browse</div><div class="list">';
+  h += favS.length
+    ? '<div class="sec-label">Favorites</div><div class="chips">' + favS.map(s => `<button class="chip" data-i="${s.i}">${esc(s.title)}</button>`).join('') + '</div>'
+    : '<div class="empty" style="padding:18px 4px 0">Tap ☆ on any protocol to pin it here.</div>';
+  $('#home').innerHTML = h;
+}
+function renderProtocols(){
+  $('#pTitle').textContent = 'Protocols'; $('#pSub').textContent = 'Version ' + DATA.version;
+  let h = '<div class="list">';
   const chaps = [];
   for (const s of SECTIONS) if (!chaps.includes(s.chapter)) chaps.push(s.chapter);
   for (const c of chaps){
@@ -362,8 +375,11 @@ function renderHome(){
     h += `<button class="chap" data-chap="${esc(c)}"><span>${esc(c)}</span><span class="cnt">${items.length} ${open ? '▴' : '▾'}</span></button>`;
     if (open) h += '<div class="chap-body">' + items.map(s => itemHTML(s, '')).join('') + '</div>';
   }
-  h += '</div>';
-  $('#home').innerHTML = h;
+  $('#pBody').innerHTML = h + '</div>';
+}
+function renderCalc(){
+  $('#pTitle').textContent = 'Calculators'; $('#pSub').textContent = '';
+  $('#pBody').innerHTML = '<div class="empty">No calculators yet.<br>Pediatric weight-based values are under the Peds tile.</div>';
 }
 let offlineMsg = '';
 function renderFoot(state){
@@ -379,7 +395,9 @@ function openPanel(name, push){
   if (push) history.pushState({panel: name}, '', '#' + name);
   $('#panel').classList.remove('hidden'); document.body.style.overflow = 'hidden'; $('#q').blur();
   const body = $('#pBody'); body.scrollTop = 0;
-  if (name === 'meds') renderMeds();
+  if (name === 'protocols') renderProtocols();
+  else if (name === 'calc') renderCalc();
+  else if (name === 'meds') renderMeds();
   else if (name === 'peds') renderPeds();
   else if (name === 'changes') renderChanges();
 }
@@ -525,7 +543,7 @@ document.addEventListener('click', e => {
   const it = e.target.closest('[data-i]');
   if (it && it.dataset.i !== ''){ openSection(+it.dataset.i, it.dataset.p ? +it.dataset.p : null, true, !!e.target.closest('#results')); return; }
   const ch = e.target.closest('[data-chap]');
-  if (ch){ const c = ch.dataset.chap; openChaps.has(c) ? openChaps.delete(c) : openChaps.add(c); renderHome(); return; }
+  if (ch){ const c = ch.dataset.chap; openChaps.has(c) ? openChaps.delete(c) : openChaps.add(c); const y = $('#pBody').scrollTop; renderProtocols(); $('#pBody').scrollTop = y; return; }
   if (e.target.id === 'theme'){
     const order = ['auto', 'light', 'dark']; const t = order[(order.indexOf(store.get('theme', 'auto')) + 1) % 3];
     store.set('theme', t); applyTheme(); renderFoot(offlineMsg);
@@ -564,9 +582,8 @@ let cur = null, renderToken = 0, observer = null;
 function openSection(i, page, push, fromSearch){
   const s = SECTIONS[i]; if (!s) return;
   cur = {s, page, terms: fromSearch ? hlTerms() : []};
-  recent = [s.num, ...recent.filter(n => n !== s.num)].slice(0, 12); store.set('recent', recent);
   if (push) history.pushState({sec: s.num, page}, '', '#' + encodeURIComponent(s.num) + (page ? '@' + page : ''));
-  $('#vNum').textContent = s.num + ' · ' + s.chapter + (CHANGED.has(s.num) ? ' · updated in ' + DATA.version : '');
+  $('#vNum').textContent = s.num + ' · ' + s.chapter;
   $('#vTitle').textContent = s.title;
   updateStar();
   const prev = SECTIONS[i - 1], next = SECTIONS[i + 1];
@@ -701,7 +718,7 @@ function route(){
   if (!DATA) return;
   const h = decodeURIComponent(location.hash.slice(1));
   const st = history.state || {};
-  if (['meds', 'peds', 'changes'].includes(h)){ if (cur) closeViewer(); if (panel !== h) openPanel(h, false); return; }
+  if (['protocols', 'meds', 'peds', 'calc', 'changes'].includes(h)){ if (cur) closeViewer(); if (panel !== h) openPanel(h, false); return; }
   const m = h.match(/^([\w.]+)(?:@(\d+))?$/);
   const s = m && SECTIONS.find(x => x.num === m[1]);
   if (s){ if (!cur || cur.s.i !== s.i) openSection(s.i, m[2] ? +m[2] : null, false, false); return; }
