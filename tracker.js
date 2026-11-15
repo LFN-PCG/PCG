@@ -324,7 +324,7 @@ document.body.appendChild(root);
 const q = s => root.querySelector(s);
 
 // ---------- render ----------
-const TABS = [['hx', 'History'], ['timeline', 'Timeline'], ['log', 'Log'], ['mon', 'Monitoring']];
+const TABS = [['hx', 'History'], ['mon', 'Monitoring'], ['log', 'Log'], ['timeline', 'Timeline']];
 function render(){
   if (!open) return;
   q('#tkTabs').innerHTML = TABS.map(([k, l]) => `<button data-tab="${k}" class="${tab === k ? 'on' : ''}">${l}${k === 'timeline' && P.entries.length ? `<span class="n">${P.entries.length}</span>` : ''}</button>`).join('');
