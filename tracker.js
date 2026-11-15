@@ -100,8 +100,12 @@ fetch('data.json').then(r => r.ok ? r.json() : null).then(d => {
 // ---------- state ----------
 const blank = () => ({v: 1, entries: [], hx: {}, last: 0});
 let P = (() => { const p = ls.get(KEY, null); return p && Array.isArray(p.entries) ? p : blank(); })();
-let prefs = Object.assign({ttl: 12, med: {}}, ls.get(PREF, {}));
-let tab = 'events', medQ = '', sheet = null, open = false, snackT = 0, clockT = 0;
+let prefs = Object.assign({ttl: 12, med: {}, fold: {}}, ls.get(PREF, {}));
+if (!prefs.fold) prefs.fold = {};
+// Which dropdowns start open (until the user changes them).
+const FOLD_DEF = {ev: true, 'ev:Transport': true, 'ev:Resuscitation': true, 'med:drips': true, 'med:given': true, 'med:find': true};
+const isOpen = k => k in prefs.fold ? prefs.fold[k] : !!FOLD_DEF[k];
+let tab = 'log', lastRemoved = null, medQ = '', sheet = null, open = false, snackT = 0, clockT = 0;
 const hasData = () => P.entries.length > 0 || Object.keys(P.hx).some(k => { const v = P.hx[k]; return Array.isArray(v) ? v.length : v !== '' && v != null; });
 function save(){ P.last = Date.now(); ls.set(KEY, P); updateTile(); }
 function savePrefs(){ ls.set(PREF, prefs); }
@@ -113,7 +117,7 @@ function expire(){
 }
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 function addEntry(e){
-  e.id = uid(); if (!e.t) e.t = Date.now();
+  e.id = uid(); e.c = Date.now(); if (!e.t) e.t = e.c;
   P.entries.push(e); P.entries.sort((a, b) => a.t - b.t); save();
   snack(`${label(e)} · ${hm(e.t)}`, e.id);
   render();
@@ -201,6 +205,18 @@ const css = `
 .tk-ev:active{background:var(--chip)}
 .tk-ev small{font-size:13px;font-weight:600;color:var(--c-trk);font-variant-numeric:tabular-nums}
 .tk-ev small:empty{display:none}
+.tk-fold{border-top:1px solid var(--line)}
+.tk-fold:first-child{border-top:0}
+.tk-fold-h{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:14px 2px;min-height:58px;font-weight:700;font-size:19px}
+.tk-fold-h .tt{flex:1;min-width:0}
+.tk-fold-h .in{font-size:13px;font-weight:700;color:var(--c-trk);font-variant-numeric:tabular-nums}
+.tk-chev{flex:none;color:var(--muted);transition:transform .15s}
+.tk-fold.open > .tk-fold-h .tk-chev{transform:rotate(90deg)}
+.tk-fold-b{padding:0 0 14px}
+.tk-fold.sub{border-top:0;margin-left:6px}
+.tk-fold.sub .tk-fold-h{min-height:48px;padding:8px 2px;font-size:14px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.tk-fold.sub .tk-fold-b{padding:2px 0 10px}
+#tkUndo:disabled{opacity:.3}
 .tk-ev.hot{outline:2px solid var(--c-trk);outline-offset:-2px}
 .tk-chips{display:flex;flex-wrap:wrap;gap:8px}
 .tk-chip{background:var(--surface);border-radius:999px;padding:8px 14px;min-height:44px;font-weight:700;font-size:15px;text-align:left}
@@ -248,6 +264,7 @@ root.innerHTML = `
     <button class="ibtn" data-act="back" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
     <div class="vtitle"><small id="tkSub"></small><span>Patient Tracker</span></div>
     <div class="tk-clock" id="tkClock"></div>
+    <button class="ibtn" data-act="undolast" id="tkUndo" aria-label="Undo last entry"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
     <button class="ibtn" data-act="askclear" aria-label="Clear patient"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>
   </div>
   <nav class="tk-tabs" id="tkTabs"></nav>
@@ -258,15 +275,16 @@ document.body.appendChild(root);
 const q = s => root.querySelector(s);
 
 // ---------- render ----------
-const TABS = [['timeline', 'Timeline'], ['hx', 'History'], ['events', 'Events'], ['meds', 'Meds'], ['tx', 'Procedures'], ['vitals', 'Vitals']];
+const TABS = [['timeline', 'Timeline'], ['hx', 'History'], ['log', 'Log'], ['vitals', 'Vitals']];
 function render(){
   if (!open) return;
   q('#tkTabs').innerHTML = TABS.map(([k, l]) => `<button data-tab="${k}" class="${tab === k ? 'on' : ''}">${l}${k === 'timeline' && P.entries.length ? `<span class="n">${P.entries.length}</span>` : ''}</button>`).join('');
   const tb = q('#tkTabs'), on = q('#tkTabs .on');
   if (on && (on.offsetLeft < tb.scrollLeft || on.offsetLeft + on.offsetWidth > tb.scrollLeft + tb.clientWidth)) tb.scrollLeft = on.offsetLeft - 10;
   tick();
+  q('#tkUndo').disabled = !P.entries.length;
   const y = q('#tkBody').scrollTop;
-  const f = {events: rEvents, meds: rMeds, tx: rTx, vitals: rVitals, hx: rHx, timeline: rTimeline}[tab];
+  const f = {log: rLog, vitals: rVitals, hx: rHx, timeline: rTimeline}[tab];
   q('#tkBody').innerHTML = f();
   q('#tkBody').scrollTop = y;
 }
@@ -281,12 +299,26 @@ function recentHTML(n){
   if (!r.length) return '';
   return lbl('Last logged') + '<div>' + r.map(e => `<div class="tk-recent"><span class="t">${hm(e.t)}</span><span class="l">${esc(label(e))}</span><button class="tk-sbtn" data-act="edit" data-id="${e.id}">Edit</button></div>`).join('') + '</div>';
 }
+const CHEV = '<svg class="tk-chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="m9 6 6 6-6 6"/></svg>';
+function fold(k, title, info, body, sub){
+  const o = isOpen(k);
+  return `<div class="tk-fold${sub ? ' sub' : ''}${o ? ' open' : ''}"><button class="tk-fold-h" data-fold="${esc(k)}" aria-expanded="${o}">${CHEV}<span class="tt">${title}</span><span class="in">${info || ''}</span></button>${o ? `<div class="tk-fold-b">${body}</div>` : ''}</div>`;
+}
+function rLog(){
+  const lastOf = k => { for (let i = P.entries.length - 1; i >= 0; i--) if (P.entries[i].k === k) return P.entries[i]; return null; };
+  const le = lastOf('event'), lm = lastOf('med'), lt = lastOf('tx');
+  const info = e => e ? esc(hm(e.t)) : '';
+  return fold('ev', 'Events', info(le), rEvents()) + fold('med', 'Meds', drips().length ? drips().length + ' drip' + (drips().length > 1 ? 's' : '') + ' running' : info(lm), rMeds()) + fold('tx', 'Procedures', info(lt), rTx()) +
+    recentHTML(3) + '<div class="tk-note">Events log the current time on tap. Use Undo at the top or Edit to fix an entry.</div>';
+}
 function rEvents(){
   const last = {}, cnt = {};
   for (const e of P.entries) if (e.k === 'event'){ last[e.n] = e.t; cnt[e.n] = (cnt[e.n] || 0) + 1; }
-  return EVENTS.map((g, i) => lbl(g.g, i ? '' : ' style="margin-top:4px"') + '<div class="tk-grid">' + g.items.map(n =>
-    `<button class="tk-ev${last[n] ? ' hot' : ''}" data-act="ev" data-n="${esc(n)}">${esc(n)}<small>${last[n] ? hm(last[n]) + (cnt[n] > 1 ? ' · ×' + cnt[n] : '') : ''}</small></button>`).join('') + '</div>').join('') +
-    recentHTML(3) + `<div class="tk-note">Tap logs the current time. Use Edit to change the time afterward.</div>`;
+  return EVENTS.map(g => {
+    const n0 = g.items.filter(n => last[n]).length;
+    return fold('ev:' + g.g, g.g, n0 ? n0 + ' logged' : '', '<div class="tk-grid">' + g.items.map(n =>
+      `<button class="tk-ev${last[n] ? ' hot' : ''}" data-act="ev" data-n="${esc(n)}">${esc(n)}<small>${last[n] ? hm(last[n]) + (cnt[n] > 1 ? ' · ×' + cnt[n] : '') : ''}</small></button>`).join('') + '</div>', true);
+  }).join('');
 }
 function medDefaults(n){
   const d = DEF[n] || [], p = prefs.med[n] || {};
@@ -295,19 +327,19 @@ function medDefaults(n){
 function rMeds(){
   let h = '';
   const dr = drips();
-  if (dr.length) h += lbl('Running drips', ' style="margin-top:4px"') + dr.map(e =>
-    `<div class="tk-drip"><span class="l">${esc(e.n)} ${e.dose != null ? fmtN(e.dose) + ' ' + esc(e.unit) : ''}<small>since ${hm(e.t)}</small></span><button class="tk-sbtn" data-act="medsheet" data-n="${esc(e.n)}" data-a="rate">Rate</button><button class="tk-sbtn" data-act="stopdrip" data-n="${esc(e.n)}">Stop</button></div>`).join('');
+  if (dr.length) h += fold('med:drips', 'Running drips', dr.length, dr.map(e =>
+    `<div class="tk-drip"><span class="l">${esc(e.n)} ${e.dose != null ? fmtN(e.dose) + ' ' + esc(e.unit) : ''}<small>since ${hm(e.t)}</small></span><button class="tk-sbtn" data-act="medsheet" data-n="${esc(e.n)}" data-a="rate">Rate</button><button class="tk-sbtn" data-act="stopdrip" data-n="${esc(e.n)}">Stop</button></div>`).join(''), true);
   const seen = new Set(), rec = [];
   for (let i = P.entries.length - 1; i >= 0 && rec.length < 6; i--){
     const e = P.entries[i];
     if (e.k === 'med' && (!e.act || e.act === 'push') && !seen.has(e.n)){ seen.add(e.n); rec.push(e); }
   }
-  if (rec.length) h += lbl('Given this patient · tap to redose') + '<div class="tk-chips">' + rec.map(e =>
-    `<button class="tk-chip" data-act="medsheet" data-n="${esc(e.n)}" data-id="${e.id}">${esc(medLabel(e))}<small>${ago(e.t)}</small></button>`).join('') + '</div>';
-  h += `<div class="searchbox" style="margin:16px 0 4px;height:52px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+  if (rec.length) h += fold('med:given', 'Given · tap to redose', rec.length, '<div class="tk-chips">' + rec.map(e =>
+    `<button class="tk-chip" data-act="medsheet" data-n="${esc(e.n)}" data-id="${e.id}">${esc(medLabel(e))}<small>${ago(e.t)}</small></button>`).join('') + '</div>', true);
+  let f = `<div class="searchbox" style="margin:4px 0 4px;height:52px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
     <input id="tkMq" type="search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Find a formulary drug" value="${esc(medQ)}"></div>`;
-  h += '<div id="tkMlist">' + medList() + '</div>';
-  return h;
+  f += '<div id="tkMlist">' + medList() + '</div>';
+  return h + fold('med:find', 'Formulary', '', f, true);
 }
 function medList(){
   const s = medQ.trim().toLowerCase();
@@ -318,9 +350,11 @@ function medList(){
 function rTx(){
   const last = {};
   for (const e of P.entries) if (e.k === 'tx') last[e.n] = e.t;
-  return TX.map((g, i) => lbl(g.g, i ? '' : ' style="margin-top:4px"') + '<div class="tk-chips">' + g.items.map(it =>
-    `<button class="tk-chip${last[it.n] ? ' on' : ''}" data-act="tx" data-n="${esc(it.n)}">${esc(it.n)}${last[it.n] ? `<small>${hm(last[it.n])}</small>` : ''}</button>`).join('') + '</div>').join('') +
-    recentHTML(3) + '<div class="tk-note">Items without details log on tap. Items with details (size, side, units) open a short form; every detail is optional.</div>';
+  return TX.map(g => {
+    const n0 = g.items.filter(it => last[it.n]).length;
+    return fold('tx:' + g.g, g.g, n0 ? n0 + ' logged' : '', '<div class="tk-chips">' + g.items.map(it =>
+      `<button class="tk-chip${last[it.n] ? ' on' : ''}" data-act="tx" data-n="${esc(it.n)}">${esc(it.n)}${last[it.n] ? `<small>${hm(last[it.n])}</small>` : ''}</button>`).join('') + '</div>', true);
+  }).join('') + '<div class="tk-note">Items with details (size, side, units) open a short form; every detail is optional.</div>';
 }
 let vDraft = {};
 function rVitals(){
@@ -439,9 +473,9 @@ function clearSheet(){
 }
 
 // ---------- snackbar ----------
-function snack(msg, id){
+function snack(msg, id, canRestore){
   const s = q('#tkSnack');
-  s.innerHTML = `<span>${esc(msg)}</span>${id ? `<button data-act="undo" data-id="${id}">Undo</button><button data-act="edit" data-id="${id}">Time</button>` : ''}`;
+  s.innerHTML = `<span>${esc(msg)}</span>${id ? `<button data-act="undo" data-id="${id}">Undo</button><button data-act="edit" data-id="${id}">Time</button>` : ''}${canRestore ? '<button data-act="restore">Restore</button>' : ''}`;
   s.classList.remove('hidden');
   clearTimeout(snackT); snackT = setTimeout(() => s.classList.add('hidden'), 5000);
 }
@@ -451,6 +485,8 @@ root.addEventListener('click', e => {
   const tb = e.target.closest('[data-tab]');
   if (tb){ tab = tb.dataset.tab; q('#tkBody').scrollTop = 0; render(); q('#tkBody').scrollTop = 0; return; }
   if (e.target.id === 'tkSheet'){ closeSheet(); return; }
+  const fh = e.target.closest('[data-fold]');
+  if (fh){ const k = fh.dataset.fold; prefs.fold[k] = !isOpen(k); savePrefs(); render(); return; }
   const b = e.target.closest('[data-act]'); if (!b) return;
   const a = b.dataset.act, n = b.dataset.n, v = b.dataset.v, id = b.dataset.id;
   switch (a){
@@ -514,12 +550,20 @@ root.addEventListener('click', e => {
     case 'del': case 'undo': {
       const en = P.entries.find(x => x.id === id);
       P.entries = P.entries.filter(x => x.id !== id); save(); closeSheet(); render();
-      if (en) snack(`Removed: ${label(en)}`);
+      if (en){ lastRemoved = en; snack(`Removed: ${label(en)}`, null, true); }
       break;
     }
+    case 'undolast': {
+      if (!P.entries.length) break;
+      const en = P.entries.reduce((a, x) => ((x.c || 0) >= (a.c || 0) ? x : a));
+      P.entries = P.entries.filter(x => x !== en); lastRemoved = en; save(); render();
+      snack(`Undid: ${label(en)}`, null, true);
+      break;
+    }
+    case 'restore': if (lastRemoved){ P.entries.push(lastRemoved); P.entries.sort((x, y) => x.t - y.t); lastRemoved = null; save(); render(); snack('Restored.'); } break;
     case 'close': closeSheet(); break;
     case 'askclear': clearSheet(); break;
-    case 'doclear': clearPatient(); vDraft = {}; closeSheet(); tab = 'events'; render(); snack('Patient cleared.'); break;
+    case 'doclear': clearPatient(); vDraft = {}; closeSheet(); tab = 'log'; render(); snack('Patient cleared.'); break;
     case 'ttl': prefs.ttl = +v; savePrefs(); render(); break;
     case 'copy': copyText(exportText()); break;
     case 'share': navigator.share({title: 'Patient timeline', text: exportText()}).catch(() => {}); break;
