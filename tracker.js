@@ -32,7 +32,6 @@ const TX = [
     {n: 'NIPPV / BiPAP', f: [{k: 'IPAP'}, {k: 'EPAP'}, {k: 'FiO2', u: '%'}]},
     {n: 'High-flow nasal cannula', f: [{k: 'Flow', u: 'L/min'}, {k: 'FiO2', u: '%'}]},
     {n: 'Oxygen', f: [{k: 'Flow', u: 'L/min'}, {k: 'Device', pick: ['NC', 'NRB', 'Mask', 'Blow-by']}]},
-    {n: 'Vent settings', f: [{k: 'Mode', pick: ['AC/VC', 'AC/PC', 'SIMV', 'PRVC', 'CPAP/PS']}, {k: 'Vt', u: 'mL'}, {k: 'RR'}, {k: 'PEEP'}, {k: 'FiO2', u: '%'}]},
     {n: 'OG / NG tube'}, {n: 'Suction'},
   ]},
   {g: 'Chest', items: [
@@ -52,6 +51,30 @@ const TX = [
   {g: 'Trauma & other', items: [
     {n: 'Tourniquet', f: [{k: 'Limb', pick: ['RUE', 'LUE', 'RLE', 'LLE']}]}, {n: 'Pelvic binder'}, {n: 'Hemostatic packing'},
     {n: 'Spinal motion restriction'}, {n: 'Splint'}, {n: 'Active warming'}, {n: 'Active cooling'}, {n: 'Restraints'},
+  ]},
+];
+// Monitoring forms (besides Vitals). Number fields: {k, l, u}; pick fields: {k, l, pick}.
+const MON = [
+  {g: 'vent', t: 'Ventilator', f: [
+    {k: 'mode', l: 'Mode', pick: ['AC/VC', 'AC/PC', 'PRVC', 'SIMV', 'CPAP/PS', 'BiPAP']},
+    {k: 'vt', l: 'Vt', u: 'mL'}, {k: 'rr', l: 'Set RR'}, {k: 'rrt', l: 'Total RR'}, {k: 'peep', l: 'PEEP'},
+    {k: 'fio2', l: 'FiO2', u: '%'}, {k: 'pip', l: 'PIP'}, {k: 'pplat', l: 'Pplat'}, {k: 'ps', l: 'PS'},
+    {k: 'pinsp', l: 'Pinsp'}, {k: 'ti', l: 'Ti', u: 's'}, {k: 'ie', l: 'I:E', pick: ['1:2', '1:3', '1:4', '1:5']},
+  ]},
+  {g: 'neuro', t: 'Neuro check', f: [
+    {k: 'e', l: 'GCS eye', pick: ['1', '2', '3', '4']}, {k: 'v', l: 'GCS verbal', pick: ['1', '2', '3', '4', '5', 'T']},
+    {k: 'm', l: 'GCS motor', pick: ['1', '2', '3', '4', '5', '6']},
+    {k: 'avpu', l: 'AVPU', pick: ['A', 'V', 'P', 'U']}, {k: 'rass', l: 'RASS', pick: ['+4', '+3', '+2', '+1', '0', '−1', '−2', '−3', '−4', '−5']},
+    {k: 'pl', l: 'L pupil', u: 'mm'}, {k: 'pr', l: 'R pupil', u: 'mm'},
+    {k: 'plr', l: 'L reacts', pick: ['Brisk', 'Sluggish', 'Fixed']}, {k: 'prr', l: 'R reacts', pick: ['Brisk', 'Sluggish', 'Fixed']},
+    {k: 'motor', l: 'Motor', pick: ['MAE equal', 'L weakness', 'R weakness', 'Lower ext weakness', 'No movement']},
+    {k: 'sens', l: 'Sensation', pick: ['Intact', 'Decreased', 'Absent']},
+  ]},
+  {g: 'fhr', t: 'Fetal heart rate', f: [
+    {k: 'fhr', l: 'FHR', u: 'bpm'}, {k: 'meth', l: 'Method', pick: ['Doppler', 'EFM']},
+    {k: 'var', l: 'Variability', pick: ['Absent', 'Minimal', 'Moderate', 'Marked']},
+    {k: 'acc', l: 'Accels', pick: ['Present', 'Absent']}, {k: 'dec', l: 'Decels', pick: ['None', 'Early', 'Variable', 'Late', 'Prolonged']},
+    {k: 'cfq', l: 'Contractions every', u: 'min'}, {k: 'cdur', l: 'Contraction length', u: 's'},
   ]},
 ];
 const RHYTHMS = ['Sinus', 'Sinus tach', 'Sinus brady', 'AFib', 'Aflutter', 'SVT', 'VT', 'VF', 'PEA', 'Asystole', 'Paced', 'Junctional', 'Heart block'];
@@ -103,7 +126,7 @@ let P = (() => { const p = ls.get(KEY, null); return p && Array.isArray(p.entrie
 let prefs = Object.assign({ttl: 12, med: {}, fold: {}}, ls.get(PREF, {}));
 if (!prefs.fold) prefs.fold = {};
 // Which dropdowns start open (until the user changes them).
-const FOLD_DEF = {ev: true, 'ev:Transport': true, 'ev:Resuscitation': true, 'med:drips': true, 'med:given': true};
+const FOLD_DEF = {'mon:vitals': true, ev: true, 'ev:Transport': true, 'ev:Resuscitation': true, 'med:drips': true, 'med:given': true};
 const isOpen = k => k in prefs.fold ? prefs.fold[k] : !!FOLD_DEF[k];
 let tab = 'log', lastRemoved = null, medQ = '', sheet = null, open = false, snackT = 0, clockT = 0;
 const hasData = () => P.entries.length > 0 || Object.keys(P.hx).some(k => { const v = P.hx[k]; return Array.isArray(v) ? v.length : v !== '' && v != null; });
@@ -153,7 +176,22 @@ function vitalsLabel(e){
   if (v.rhythm) p.push(v.rhythm);
   return 'Vitals: ' + (p.join(' · ') || '—');
 }
+function monLabel(e){
+  const c = MON.find(x => x.g === e.g); if (!c) return '';
+  const v = e.v, p = [];
+  if (e.g === 'neuro' && v.e && v.v && v.m){
+    const tot = +v.e + (v.v === 'T' ? 0 : +v.v) + +v.m;
+    p.push(`GCS ${tot}${v.v === 'T' ? 'T' : ''} (E${v.e} V${v.v} M${v.m})`);
+  }
+  for (const f of c.f){
+    if (v[f.k] == null || v[f.k] === '') continue;
+    if (e.g === 'neuro' && ['e', 'v', 'm'].includes(f.k) && v.e && v.v && v.m) continue;
+    p.push(f.pick && ['mode', 'motor', 'meth'].includes(f.k) ? v[f.k] : `${f.l} ${v[f.k]}${f.u ? (f.u === '%' ? '%' : ' ' + f.u) : ''}`);
+  }
+  return c.t + ': ' + (p.join(' · ') || '—');
+}
 function label(e){
+  if (e.k === 'mon') return monLabel(e);
   if (e.k === 'med') return medLabel(e);
   if (e.k === 'vitals') return vitalsLabel(e);
   if (e.k === 'tx') return e.n + (e.d && e.d.length ? ' — ' + e.d.join(', ') : '');
@@ -275,7 +313,7 @@ document.body.appendChild(root);
 const q = s => root.querySelector(s);
 
 // ---------- render ----------
-const TABS = [['timeline', 'Timeline'], ['hx', 'History'], ['log', 'Log'], ['vitals', 'Vitals']];
+const TABS = [['timeline', 'Timeline'], ['hx', 'History'], ['log', 'Log'], ['mon', 'Monitoring']];
 function render(){
   if (!open) return;
   q('#tkTabs').innerHTML = TABS.map(([k, l]) => `<button data-tab="${k}" class="${tab === k ? 'on' : ''}">${l}${k === 'timeline' && P.entries.length ? `<span class="n">${P.entries.length}</span>` : ''}</button>`).join('');
@@ -284,7 +322,7 @@ function render(){
   tick();
   q('#tkUndo').disabled = !P.entries.length;
   const y = q('#tkBody').scrollTop;
-  const f = {log: rLog, vitals: rVitals, hx: rHx, timeline: rTimeline}[tab];
+  const f = {log: rLog, mon: rMon, hx: rHx, timeline: rTimeline}[tab];
   q('#tkBody').innerHTML = f();
   q('#tkBody').scrollTop = y;
 }
@@ -356,10 +394,32 @@ function rTx(){
       `<button class="tk-chip${last[it.n] ? ' on' : ''}" data-act="tx" data-n="${esc(it.n)}">${esc(it.n)}${last[it.n] ? `<small>${hm(last[it.n])}</small>` : ''}</button>`).join('') + '</div>', true);
   }).join('') + '<div class="tk-note">Items with details (size, side, units) open a short form; every detail is optional.</div>';
 }
-let vDraft = {};
+let vDraft = {}, mDraft = {vent: {}, neuro: {}, fhr: {}};
+function rMon(){
+  const lastOf = (k, g) => { for (let i = P.entries.length - 1; i >= 0; i--){ const e = P.entries[i]; if (e.k === k && (!g || e.g === g)) return e; } return null; };
+  const info = e => e ? hm(e.t) : '';
+  let h = fold('mon:vitals', 'Vitals', info(lastOf('vitals')), rVitals());
+  for (const c of MON){
+    const d = mDraft[c.g], last = lastOf('mon', c.g);
+    let b = last ? `<div class="card"><h3>Last · ${hm(last.t)} · ${ago(last.t)}</h3><div class="tk-sum">${esc(monLabel(last).replace(/^[^:]+: /, ''))}</div></div>` : '';
+    // Fields in config order; consecutive number fields share a two-column grid.
+    let grid = [];
+    const flush = () => { if (grid.length){ b += '<div class="tk-vgrid" style="margin-top:10px">' + grid.join('') + '</div>'; grid = []; } };
+    for (const f of c.f){
+      if (f.pick){ flush(); b += lbl(esc(f.l)) + '<div class="tk-chips">' + f.pick.map(o => `<button class="tk-chip${d[f.k] === o ? ' on' : ''}" data-act="mpick" data-g="${c.g}" data-f="${f.k}" data-v="${esc(o)}">${esc(o)}</button>`).join('') + '</div>'; }
+      else grid.push(`<div class="field"><label>${esc(f.l)}${f.u ? ' (' + esc(f.u) + ')' : ''}</label><input data-mg="${c.g}" data-mf="${f.k}" type="number" inputmode="decimal" step="any" placeholder="—" value="${d[f.k] != null ? esc(d[f.k]) : ''}"></div>`);
+    }
+    flush();
+    if (c.g === 'neuro' && d.e && d.v && d.m) b += `<div class="tk-note" style="margin:8px 2px 0">GCS total: <b>${+d.e + (d.v === 'T' ? 0 : +d.v) + +d.m}${d.v === 'T' ? 'T' : ''}</b></div>`;
+    b += lbl('Time') + `<div class="tk-time"><input type="time" id="tkMt-${c.g}" value="${d._t || hm(Date.now())}"><button class="tk-sbtn" data-act="tnow" data-for="tkMt-${c.g}">Now</button></div>`;
+    b += `<button class="btn" data-act="logmon" data-g="${c.g}" style="margin-top:14px">Log ${esc(c.t.toLowerCase())}</button>`;
+    h += fold('mon:' + c.g, c.t, info(last), b);
+  }
+  return h;
+}
 function rVitals(){
   const lastV = [...P.entries].reverse().find(e => e.k === 'vitals');
-  let h = lastV ? `<div class="card" style="margin-top:4px"><h3>Last set · ${hm(lastV.t)} · ${ago(lastV.t)}</h3><div class="tk-sum">${esc(vitalsLabel(lastV).replace(/^Vitals: /, ''))}</div></div>` : '';
+  let h = lastV ? `<div class="card"><h3>Last set · ${hm(lastV.t)} · ${ago(lastV.t)}</h3><div class="tk-sum">${esc(vitalsLabel(lastV).replace(/^Vitals: /, ''))}</div></div>` : '';
   h += '<div class="tk-vgrid">' + VITALS.map(v => `<div class="field"><label for="tkv-${v.k}">${v.l}</label><input id="tkv-${v.k}" data-v="${v.k}" type="number" inputmode="decimal" step="any" placeholder="—" value="${vDraft[v.k] != null ? esc(vDraft[v.k]) : ''}"></div>`).join('') + '</div>';
   h += lbl('Rhythm') + '<div class="tk-chips">' + RHYTHMS.map(r => `<button class="tk-chip${vDraft.rhythm === r ? ' on' : ''}" data-act="rhythm" data-v="${esc(r)}">${esc(r)}</button>`).join('') + '</div>';
   h += lbl('Time') + `<div class="tk-time"><input type="time" id="tkVt" value="${vDraft.time || hm(Date.now())}"><button class="tk-sbtn" data-act="vnow">Now</button></div>`;
@@ -410,7 +470,7 @@ function rTimeline(){
   if (tt.length || dr.length) h += `<div class="card"><h3>Meds</h3><div class="tk-sum">${tt.map(o => `<div>${esc(o.n)} <b>${fmtN(o.sum)} ${esc(o.unit)}</b>${o.c > 1 ? ` in ${o.c} doses` : ''}, last ${hm(o.last)}</div>`).join('')}${dr.map(e => `<div>${esc(e.n)} drip <b>${e.dose != null ? fmtN(e.dose) + ' ' + esc(e.unit) : 'running'}</b></div>`).join('')}</div></div>`;
   if (!P.entries.length) h += '<div class="empty">Nothing logged yet.</div>';
   else {
-    const kind = {event: 'Event', med: 'Med', tx: 'Proc', vitals: 'Vitals'};
+    const kind = {event: 'Event', med: 'Med', tx: 'Proc', vitals: 'Vitals', mon: 'Monitor'};
     h += lbl('Timeline · tap to edit') + '<div class="list">' + P.entries.map(e => `<button class="tk-row" data-act="edit" data-id="${e.id}"><span class="t">${hm(e.t)}</span><span class="l">${esc(label(e))}</span><span class="k">${kind[e.k] || ''}</span></button>`).join('') + '</div>';
   }
   h += `<div class="tk-bar"><button class="btn" data-act="copy"${hasData() ? '' : ' disabled'}>Copy timeline</button>${navigator.share ? `<button class="btn ghost" data-act="share"${hasData() ? '' : ' disabled'}>Share…</button>` : ''}</div>`;
@@ -522,6 +582,17 @@ root.addEventListener('click', e => {
       const t = pickTime('tkTt'); closeSheet(); addEntry({k: 'tx', n, d, t}); break;
     }
     case 'tnow': { const el = q('#' + b.dataset.for); if (el) el.value = hm(Date.now()); break; }
+    case 'mpick': { const d = mDraft[b.dataset.g]; d[b.dataset.f] = d[b.dataset.f] === v ? undefined : v; render(); break; }
+    case 'logmon': {
+      const g = b.dataset.g, c = MON.find(x => x.g === g), d = mDraft[g], vals = {};
+      for (const f of c.f){
+        if (f.pick){ if (d[f.k]) vals[f.k] = d[f.k]; }
+        else { const x = num(d[f.k] ?? ''); if (x != null) vals[f.k] = fmtN(x); }
+      }
+      if (!Object.keys(vals).length){ snack('Enter at least one value.'); return; }
+      const t = pickTime('tkMt-' + g);
+      mDraft[g] = {}; addEntry({k: 'mon', g, v: vals, t}); break;
+    }
     case 'rhythm': vDraft.rhythm = vDraft.rhythm === v ? undefined : v; render(); break;
     case 'vnow': vDraft.time = undefined; q('#tkVt').value = hm(Date.now()); break;
     case 'logv': {
@@ -563,7 +634,7 @@ root.addEventListener('click', e => {
     case 'restore': if (lastRemoved){ P.entries.push(lastRemoved); P.entries.sort((x, y) => x.t - y.t); lastRemoved = null; save(); render(); snack('Restored.'); } break;
     case 'close': closeSheet(); break;
     case 'askclear': clearSheet(); break;
-    case 'doclear': clearPatient(); vDraft = {}; closeSheet(); tab = 'log'; render(); snack('Patient cleared.'); break;
+    case 'doclear': clearPatient(); vDraft = {}; mDraft = {vent: {}, neuro: {}, fhr: {}}; closeSheet(); tab = 'log'; render(); snack('Patient cleared.'); break;
     case 'ttl': prefs.ttl = +v; savePrefs(); render(); break;
     case 'copy': copyText(exportText()); break;
     case 'share': navigator.share({title: 'Patient timeline', text: exportText()}).catch(() => {}); break;
@@ -572,6 +643,8 @@ root.addEventListener('click', e => {
 root.addEventListener('input', e => {
   const t = e.target;
   if (t.id === 'tkMq'){ medQ = t.value; q('#tkMlist').innerHTML = medList(); return; }
+  if (t.dataset.mg){ mDraft[t.dataset.mg][t.dataset.mf] = t.value; return; }
+  if (t.id && t.id.startsWith('tkMt-')){ mDraft[t.id.slice(5)]._t = t.value; return; }
   if (t.dataset.v && t.closest('.tk-vgrid')){ vDraft[t.dataset.v] = t.value; return; }
   if (t.id === 'tkVt'){ vDraft.time = t.value; return; }
   if (t.dataset.h === 'age'){ let x = num(t.value); if (x != null && x > 89 && (P.hx.ageU || 'y') === 'y'){ P.hx.age = '90+'; save(); render(); return; } P.hx.age = x == null ? '' : x; save(); return; }
