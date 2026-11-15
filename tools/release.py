@@ -2,7 +2,7 @@
 import hashlib, json, re, sys, os
 root = sys.argv[1] if len(sys.argv) > 1 else '.'
 h = hashlib.sha256()
-for f in ['index.html', 'data.json', 'changes.json', 'peds.json', 'comms.json', 'calc.js', 'tracker.js', 'guidelines.pdf', 'pdf.min.js', 'pdf.worker.min.js', 'manifest.webmanifest']:
+for f in ['index.html', 'data.json', 'changes.json', 'peds.json', 'comms.json', 'calc.js', 'doses.js', 'tracker.js', 'guidelines.pdf', 'pdf.min.js', 'pdf.worker.min.js', 'manifest.webmanifest']:
     p = os.path.join(root, f)
     if os.path.exists(p):
         h.update(open(p, 'rb').read())
