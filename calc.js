@@ -54,6 +54,28 @@ const toConc = (amt, from, to) => {
 
 const CALCS = [
 {
+  id: 'o2cyl', title: 'O2 cylinder duration', color: 'prot',
+  fields: [
+    {id: 'cyl', label: 'Cylinder', type: 'seg', options: ['D', 'E', 'M', 'G', 'H/K', 'Other'], def: 'D'},
+    {id: 'cf', label: 'Cylinder factor', type: 'number', unit: 'L/psi', show: v => v.cyl === 'Other'},
+    {id: 'p', label: 'Gauge pressure', type: 'number', unit: 'psi'},
+    {id: 'res', label: 'Safe residual', type: 'number', unit: 'psi', def: '200'},
+    {id: 'flow', label: 'Flow rate', type: 'number', unit: 'L/min'},
+  ],
+  compute(v){
+    const F = {D: 0.16, E: 0.28, M: 1.56, G: 2.41, 'H/K': 3.14};
+    const f = v.cyl === 'Other' ? num(v.cf) : F[v.cyl], p = num(v.p), res = v.res === '' ? 0 : num(v.res), fl = num(v.flow);
+    if (!has(f) || !has(p) || !has(fl) || !(res >= 0)) return null;
+    if (p <= res) return {out: [{k: 'Duration', v: 'At or below residual', big: true}], work: [`${p} psi is at or below the ${res} psi safe residual`]};
+    const m = (p - res) * f / fl;
+    return {out: [{k: 'Duration', v: mins(m), big: true}, {k: 'Usable oxygen', v: r((p - res) * f, 0) + ' L'}],
+      work: [`Cylinder factor: ${v.cyl === 'Other' ? 'entered' : v.cyl + ' cylinder'} = ${f} L/psi`, `(${p} psi − ${res} psi residual) × ${f} = ${r((p - res) * f, 0)} L`, `${r((p - res) * f, 0)} L ÷ ${fl} L/min = ${r(m)} min`],
+      disclaimer: 'Standard EMS / respiratory therapy formula from published sources (below), not from the LFN Patient Care Guidelines. Confirm your cylinder size and check the gauge often.',
+      refs: [{label: 'Texas A&M EMS: Oxygen Duration (formula, 200 psi residual, factors)', href: 'https://ems.tamu.edu/wp-content/uploads/2023/03/APP-00-Oxygen-Duration.pdf'}, {label: 'Tampa General: Oxygen duration (factor = full volume ÷ full pressure)', href: 'https://extmedia.tgh.org/sites/default/files/oxygen-duration-nugget-.pdf'}],
+      notes: ['Duration (min) = (gauge psi − safe residual) × cylinder factor ÷ flow (L/min). Cylinder factor = full cylinder volume (L) ÷ full pressure (psi).', 'Factors: D 0.16, E 0.28, M 1.56, G 2.41, H/K 3.14 L/psi. Texas A&M lists H/K as 3.15.', 'Safe residual: 200 psi is the common EMS value; some respiratory therapy programs use 500 psi; set it to 0 to run the tank empty.', 'On a ventilator at FiO2 100%, the flow from the tank is the minute volume plus any bias flow (Tampa General). The real flow varies with FiO2 and the ventilator; use the ventilator’s own estimate when it has one.']};
+  }
+},
+{
   id: 'd10', title: 'D10 hypoglycemia', color: 'peds',
   fields: [
     {id: 'who', type: 'seg', options: ['Neonate', 'Pediatric', 'Adult'], def: 'Neonate'},
