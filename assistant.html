@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#10151c">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<title>LFN Assistant</title>
+<style>
+:root{
+  --bg:#10151c; --surface:#1c2430; --text:#f3f6fa; --muted:#9aa6b8; --line:#2a3442;
+  --accent:#4c9bff; --accent-soft:#16263d; --chip:#26303e; --c-ink:#0b1320;
+  --field:#f3f6fa; --field-text:#10151c; --field-muted:#4f5b6b;
+  --warn:#2b230d; --warn-text:#f3d58a; --gk:#22183a; --gk-text:#d9c8ff; --err:#2e1414; --err-text:#f5aaaa;
+  color-scheme:dark;
+}
+:root[data-theme="light"]{
+  --bg:#f3f6fa; --surface:#ffffff; --text:#10151c; --muted:#4f5b6b; --line:#dde3eb;
+  --accent:#1f6fe0; --accent-soft:#e6f0ff; --chip:#e9eef4; --c-ink:#ffffff;
+  --field:#ffffff; --field-text:#10151c; --field-muted:#4f5b6b;
+  --warn:#fff7e0; --warn-text:#713f12; --gk:#f1ebff; --gk-text:#3b2470; --err:#fdecec; --err-text:#7f1d1d;
+  color-scheme:light;
+}
+@font-face{font-family:"Atkinson Hyperlegible";font-weight:400;font-display:swap;src:url(fonts/atkinson-400.woff2) format("woff2")}
+@font-face{font-family:"Atkinson Hyperlegible";font-weight:700;font-display:swap;src:url(fonts/atkinson-700.woff2) format("woff2")}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{background:var(--bg);color:var(--text);font:16px/1.45 "Atkinson Hyperlegible",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+.hidden{display:none!important}
+.bar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:6px;padding:calc(6px + env(safe-area-inset-top)) 8px 6px;background:var(--surface);border-bottom:1px solid var(--line)}
+.ibtn{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;flex:none;text-decoration:none;color:inherit}
+.ibtn:active{background:var(--chip)}
+.title{flex:1;font-weight:700;font-size:17px;line-height:1.2}
+.title small{display:block;font-weight:400;font-size:12px;color:var(--muted)}
+main{max-width:720px;margin:0 auto;padding:12px 16px calc(150px + env(safe-area-inset-bottom))}
+.note{background:var(--warn);color:var(--warn-text);border-radius:12px;padding:10px 12px;font-size:14px;margin:4px 0 14px}
+.card{background:var(--surface);border-radius:16px;padding:14px 16px;margin:0 0 12px}
+.q{background:var(--accent-soft);border-radius:16px;padding:12px 16px;margin:18px 0 10px;font-weight:700;white-space:pre-wrap}
+.a h3{font-size:17px;margin:16px 0 6px}
+.a h3:first-child{margin-top:2px}
+.a p{margin:6px 0}
+.a ul{margin:6px 0;padding-left:20px}
+.a li{margin:3px 0}
+.a .gk{background:var(--gk);color:var(--gk-text);border-radius:12px;padding:4px 12px 8px;margin-top:14px}
+.a .gk h3{color:inherit}
+a.pg{display:inline-block;background:var(--accent);color:var(--c-ink);font-weight:700;font-size:13px;border-radius:999px;padding:0 8px;margin:0 1px;text-decoration:none;white-space:nowrap;line-height:1.6}
+.meta{font-size:12.5px;color:var(--muted);margin-top:10px;border-top:1px solid var(--line);padding-top:8px}
+.err{background:var(--err);color:var(--err-text)}
+.thinking{color:var(--muted);display:flex;align-items:center;gap:10px}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--accent);animation:p 1s infinite alternate}
+@keyframes p{from{opacity:.25}to{opacity:1}}
+.ask{position:fixed;left:0;right:0;bottom:0;background:var(--bg);border-top:1px solid var(--line);padding:10px 12px calc(10px + env(safe-area-inset-bottom))}
+.ask .row{max-width:720px;margin:0 auto;display:flex;gap:8px;align-items:flex-end}
+textarea{flex:1;min-width:0;resize:none;border:2px solid var(--field);border-radius:14px;background:var(--field);color:var(--field-text);font:inherit;font-size:17px;padding:10px 12px;max-height:40vh;outline:0}
+textarea:focus{border-color:var(--accent)}
+textarea::placeholder{color:var(--field-muted)}
+.send{height:50px;min-width:64px;border-radius:14px;background:var(--accent);color:var(--c-ink);font-weight:700;font-size:16px;padding:0 14px}
+.send:disabled{opacity:.5}
+.phi{max-width:720px;margin:0 auto 8px;background:var(--warn);color:var(--warn-text);border-radius:12px;padding:10px 12px;font-size:14px}
+.phi button{text-decoration:underline;font-weight:700;margin-right:14px;min-height:36px}
+.examples{display:flex;flex-direction:column;gap:8px}
+.ex{background:var(--surface);border-radius:12px;padding:12px 14px;text-align:left;min-height:48px}
+.ex:active{background:var(--chip)}
+label{display:block;font-weight:700;margin:12px 0 4px}
+input.f{width:100%;border:2px solid var(--line);border-radius:12px;background:var(--field);color:var(--field-text);font:inherit;padding:10px 12px}
+.btn{display:inline-block;margin-top:14px;min-height:46px;border-radius:12px;background:var(--accent);color:var(--c-ink);font-weight:700;padding:0 18px}
+.sec-label{font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:18px 0 8px}
+</style>
+</head>
+<body>
+<div class="bar">
+  <a class="ibtn" href="./" aria-label="Back to guidelines"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></a>
+  <div class="title">Assistant<small id="sub">From the Patient Care Guidelines</small></div>
+  <button class="ibtn" id="newBtn" aria-label="New conversation"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></button>
+  <button class="ibtn" id="setBtn" aria-label="Settings"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+</div>
+
+<main>
+  <div class="note">Decision support only. Verify against the guideline pages (tap the page buttons), use your judgment, and contact medical control as the guidelines direct. Needs signal. Do not enter names, dates of birth, record numbers or other identifiers.</div>
+
+  <section id="settings" class="card hidden">
+    <b>Connect the assistant</b>
+    <label for="url">Assistant server URL</label>
+    <input class="f" id="url" type="url" placeholder="https://lfn-assistant.your-name.workers.dev" autocomplete="off">
+    <label for="code">Access code</label>
+    <input class="f" id="code" type="password" autocomplete="current-password">
+    <button class="btn" id="saveSet">Save</button>
+    <p style="font-size:13px;color:var(--muted)">Stored on this device only.</p>
+  </section>
+
+  <section id="intro">
+    <div class="sec-label">Try</div>
+    <div class="examples">
+      <button class="ex">I'm about to transport a 28 week pregnant female with pre-eclampsia. What should I be aware of?</button>
+      <button class="ex">Intubated TBI patient for a long ground transport. What are the ventilation and BP targets?</button>
+      <button class="ex">Adult DKA interfacility transfer on an insulin drip. What do I monitor and when do I change fluids?</button>
+    </div>
+  </section>
+
+  <div id="log"></div>
+</main>
+
+<div class="ask">
+  <div class="phi hidden" id="phi">This looks like it may contain a patient identifier (a name, date or record number). Remove it before sending.<br><button id="phiEdit">Edit</button><button id="phiSend">Send anyway</button></div>
+  <div class="row">
+    <textarea id="q" rows="1" placeholder="Ask about a patient or transport…" enterkeyhint="send"></textarea>
+    <button class="send" id="send">Ask</button>
+  </div>
+</div>
+
+<script>
+// Set this once the Worker is deployed, or enter it under Settings on the phone.
+const DEFAULT_WORKER_URL = '';
+
+const $ = s => document.querySelector(s);
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+if (store.get('theme', 'dark') === 'light') document.documentElement.dataset.theme = 'light';
+
+let SECTIONS = [];   // to map a cited page to its section for deep links
+fetch('data.json').then(r => r.json()).then(d => { SECTIONS = d.sections; }).catch(() => {});
+
+let history_ = [];   // [{role, content}] text-only conversation
+let busy = false;
+
+function cfg(){ return { url: (store.get('aiUrl', '') || DEFAULT_WORKER_URL).replace(/\/+$/, ''), code: store.get('aiCode', '') }; }
+function showSettings(show){
+  $('#settings').classList.toggle('hidden', !show);
+  if (show){ $('#url').value = cfg().url; $('#code').value = cfg().code; }
+}
+$('#setBtn').onclick = () => showSettings($('#settings').classList.contains('hidden'));
+$('#saveSet').onclick = () => { store.set('aiUrl', $('#url').value.trim()); store.set('aiCode', $('#code').value); showSettings(false); };
+if (!cfg().url || !cfg().code) showSettings(true);
+
+$('#newBtn').onclick = () => { history_ = []; $('#log').innerHTML = ''; $('#intro').classList.remove('hidden'); $('#q').focus(); };
+document.querySelectorAll('.ex').forEach(b => b.onclick = () => { $('#q').value = b.textContent; autosize(); $('#q').focus(); });
+
+const q = $('#q');
+function autosize(){ q.style.height = 'auto'; q.style.height = Math.min(q.scrollHeight + 4, innerHeight * 0.4) + 'px'; }
+q.addEventListener('input', () => { autosize(); $('#phi').classList.add('hidden'); });
+q.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && matchMedia('(hover:hover)').matches){ e.preventDefault(); submit(false); } });
+$('#send').onclick = () => submit(false);
+$('#phiSend').onclick = () => submit(true);
+$('#phiEdit').onclick = () => { $('#phi').classList.add('hidden'); q.focus(); };
+
+// Rough screen for identifiers. It can't catch everything; it is a reminder, not a filter.
+function looksIdentifying(t){
+  return /\b(mr|mrs|ms|miss|dr)\.?\s+[A-Z][a-z]+/.test(t)
+    || /\b(name is|named|patient name)\b/i.test(t)
+    || /\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b/.test(t)
+    || /\b(dob|d\.o\.b|mrn|ssn)\b/i.test(t)
+    || /\b\d{6,}\b/.test(t);
+}
+
+function esc(s){ return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function secForPage(p){ return SECTIONS.find(s => p >= s.start && p <= s.end); }
+function pageLinks(html){
+  return html.replace(/\[p\.?\s*(\d+)(?:\s*[-–]\s*(\d+))?\]/g, (m, a, b) => {
+    const s = secForPage(+a);
+    const href = s ? `./#${encodeURIComponent(s.num)}@${a}` : './';
+    return `<a class="pg" href="${href}">p. ${a}${b ? '–' + b : ''}</a>`;
+  });
+}
+// Minimal Markdown: headings, bullets, bold, paragraphs. Input is escaped first.
+function render(md){
+  const lines = esc(md).split('\n');
+  let out = '', inList = false, inGk = false;
+  const close = () => { if (inList){ out += '</ul>'; inList = false; } };
+  for (let raw of lines){
+    const line = raw.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+    const h = line.match(/^#{1,6}\s+(.*)/);
+    if (h){
+      close();
+      if (/general knowledge/i.test(h[1]) && !inGk){ out += '<div class="gk">'; inGk = true; }
+      out += `<h3>${h[1]}</h3>`; continue;
+    }
+    const li = line.match(/^\s*(?:[-*•]|\d+\.)\s+(.*)/);
+    if (li){ if (!inList){ out += '<ul>'; inList = true; } out += `<li>${li[1]}</li>`; continue; }
+    close();
+    if (line.trim()) out += `<p>${line}</p>`;
+  }
+  close(); if (inGk) out += '</div>';
+  return pageLinks(out);
+}
+
+async function submit(force){
+  const text = q.value.trim();
+  if (!text || busy) return;
+  const { url, code } = cfg();
+  if (!url || !code){ showSettings(true); return; }
+  if (!force && looksIdentifying(text)){ $('#phi').classList.remove('hidden'); return; }
+  $('#phi').classList.add('hidden');
+  if (!navigator.onLine){ addError('No signal. The assistant needs a connection; the guidelines themselves still work offline.'); return; }
+
+  $('#intro').classList.add('hidden');
+  const qEl = document.createElement('div'); qEl.className = 'q'; qEl.textContent = text; $('#log').appendChild(qEl);
+  const aEl = document.createElement('div'); aEl.className = 'card a';
+  aEl.innerHTML = '<div class="thinking"><span class="dot"></span>Reading the guidelines…</div>';
+  $('#log').appendChild(aEl); qEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  q.value = ''; autosize(); busy = true; $('#send').disabled = true;
+
+  try{
+    const res = await fetch(url + '/ask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + code },
+      body: JSON.stringify({ question: text, history: history_ })
+    });
+    const data = await res.json().catch(() => ({ error: 'Bad response from the assistant server.' }));
+    if (!res.ok || data.error){
+      aEl.classList.add('err'); aEl.textContent = data.error || ('Error ' + res.status);
+      if (res.status === 401) showSettings(true);
+    } else {
+      aEl.innerHTML = render(data.answer) +
+        `<div class="meta">Guidelines v${esc(data.version)} · read ${data.pagesRead.length} pages · ~$${data.costUsd.toFixed(3)}</div>`;
+      history_.push({ role: 'user', content: text }, { role: 'assistant', content: data.answer });
+      history_ = history_.slice(-6);
+    }
+  }catch(e){
+    aEl.classList.add('err'); aEl.textContent = 'Could not reach the assistant. Check signal and the server URL in Settings.';
+  }finally{
+    busy = false; $('#send').disabled = false;
+  }
+}
+function addError(msg){ const d = document.createElement('div'); d.className = 'card err'; d.textContent = msg; $('#log').appendChild(d); }
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+name = "lfn-assistant"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+
+[vars]
+ALLOWED_ORIGINS = "https://lfn-pcg.github.io,http://localhost:8080"
+DATA_URL = "https://lfn-pcg.github.io/PCG/data.json"
+# MODEL = "claude-sonnet-5-5"   # uncomment to halve the cost per question
+
+# Secrets (never put these in this file):
+#   npx wrangler secret put ANTHROPIC_API_KEY
+#   npx wrangler secret put ACCESS_CODE
