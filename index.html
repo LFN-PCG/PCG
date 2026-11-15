@@ -397,9 +397,16 @@ function renderProtocols(){
   }
   $('#pBody').innerHTML = h + '</div>';
 }
+const CALC_NOTES = [
+  {t: 'Tank duration formula: high flow', l: ['(Tank psi − 200) × .16 / flow rate = time in minutes', 'Multiple x 2 if PSI is same for both tanks', 'Otherwise calculate both tanks separately and add together for total time']},
+  {t: 'Mixing D10', l: ['4 ml D50 + 16 ml NS (20 ml syringe)', 'Give 2mg/kg for NEOnate']},
+  {t: 'Oxygen calculation', l: ['1. Calculate tidal volume at 10 ml/kg', '2. Base the rr at max rr. Add 5 for margin of error.', '3. Don’t forget bias flow', '4. Intubated it >60% or nopal >20/10']},
+];
 function renderCalc(){
-  $('#pTitle').textContent = 'Calculators'; $('#pSub').textContent = '';
-  $('#pBody').innerHTML = '<div class="empty">No calculators yet.<br>Pediatric weight-based values are under the Peds tile.</div>';
+  $('#pTitle').textContent = 'Calculators'; $('#pSub').textContent = 'Crew reference notes';
+  $('#pBody').innerHTML = '<div class="warn">Crew notes, not part of the Patient Care Guidelines. Verify against the guidelines.</div>' +
+    CALC_NOTES.map(n => `<div class="card"><h3>${esc(n.t)}</h3>${n.l.map(x => `<div style="padding:6px 0;font-size:17px;line-height:1.45">${esc(x)}</div>`).join('')}</div>`).join('') +
+    '<div class="dim" style="text-align:center;margin-top:8px">Pediatric weight-based values are under the Peds tile.</div>';
 }
 let offlineMsg = '';
 function renderFoot(state){
