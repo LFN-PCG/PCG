@@ -37,7 +37,7 @@ const DRUGS = [
   {n: 'Nitroglycerin', c: 0.2, u: 'mg', mix: '50 mg / 250 mL', units: ['mcg/min'], sec: '12.61', p: 381},
   {n: 'Nitroprusside', c: 0.2, u: 'mg', mix: '50 mg / 250 mL', units: ['mcg/kg/min'], sec: '12.62', p: 383},
   {n: 'Norepinephrine', c: 16, u: 'mcg', mix: '4 mg / 250 mL', units: ['mcg/min', 'mcg/kg/min'], sec: '12.63', p: 384},
-  {n: 'Octreotide', c: 2, u: 'mg', mix: '500 mg / 250 mL', units: ['mcg/hr'], sec: '12.64', p: 385, warn: 'The guideline lists octreotide as 500 mg / 250 mL (p.310 and p.384), but its dosing is in mcg (25–50 mcg/hr). The mix is likely 500 mcg / 250 mL (2 mcg/mL); if so this result is 1000× too low. Confirm the bag concentration before using this result.'},
+  {n: 'Octreotide', c: 2, u: 'mcg', mix: '500 mcg / 250 mL', units: ['mcg/hr'], sec: '12.64', p: 385, warn: 'Concentration corrected to 500 mcg / 250 mL (2 mcg/mL) at the crew’s direction. The guideline prints “500 mg / 250 mL” (p.310 and p.384), which conflicts with its mcg dosing (25–50 mcg/hr).'},
   {n: 'Phenylephrine', c: 0.08, u: 'mg', mix: '20 mg / 250 mL', units: ['mcg/min', 'mcg/kg/min'], sec: '12.68', p: 389},
   {n: 'Propofol', c: 10, u: 'mg', mix: '1000 mg / 100 mL', units: ['mcg/kg/min'], sec: '12.72', p: 393},
   {n: 'Vasopressin', c: 0.2, u: 'units', mix: '20 units / 100 mL', units: ['units/min'], sec: '12.83', p: 405},
