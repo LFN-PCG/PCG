@@ -544,9 +544,8 @@ function rHx(){
   };
   const sum = k => { const v = h[k]; return esc(Array.isArray(v) ? (v.length > 2 ? v.slice(0, 2).join(', ') + ' +' + (v.length - 2) : v.join(', ')) : (v || '')); };
   const over = h.age === '90+';
-  const fresh = !P.entries.length && !h.wt && (h.age === '' || h.age == null);
   const ptInfo = [h.age !== '' && h.age != null ? (over ? '90+ y' : h.age + ' ' + (h.ageU || 'y')) : '', h.wt ? h.wt + ' kg' : ''].filter(Boolean).join(' · ');
-  let s = fresh ? '<div style="text-align:right;margin:2px 0 -4px"><button class="tk-sbtn" data-act="tolog">Skip to Log ›</button></div>' : '';
+  let s = '';
   s += fold('hx:pt', 'Age & weight', esc(ptInfo), `
     <div class="inputs">
       <div class="field"><label for="tkAge">Age</label><input id="tkAge" data-h="age" type="number" inputmode="numeric" min="0" max="89" placeholder="—" value="${over ? '' : esc(h.age ?? '')}"${over ? ' disabled' : ''}></div>
