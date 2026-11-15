@@ -1,5 +1,5 @@
 /* Patient Tracker: one-tap timeline of events, meds, procedures, vitals and brief history.
-   Self-contained module. Stores data only in this browser's localStorage. No network calls
+   Self-contained module. Stores data only in this browser (localStorage; photos in IndexedDB). No network calls
    except reading the app's own data.json for the formulary list. No free-text fields. */
 (() => {
 'use strict';
@@ -9,6 +9,22 @@ const ls = {
   set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} },
   del(k){ try{ localStorage.removeItem(k); }catch(e){} }
 };
+// Photos: JPEG blobs in IndexedDB, keyed by entry id. Never uploaded; cleared with the patient.
+const pdb = (() => {
+  let dbp = null;
+  const db = () => dbp || (dbp = new Promise((res, rej) => {
+    try { const r = indexedDB.open('tk_photos', 1); r.onupgradeneeded = () => r.result.createObjectStore('p'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }
+    catch(e){ rej(e); }
+  }));
+  const run = (mode, fn) => db().then(d => new Promise((res, rej) => { const tx = d.transaction('p', mode), st = tx.objectStore('p'); const r = fn(st); tx.oncomplete = () => res(r && r.result); tx.onerror = () => rej(tx.error); }));
+  return {
+    put: (k, b) => run('readwrite', st => st.put(b, k)),
+    get: k => run('readonly', st => st.get(k)),
+    del: k => run('readwrite', st => st.delete(k)).catch(() => {}),
+    keys: () => run('readonly', st => st.getAllKeys()).catch(() => []),
+    clear: () => run('readwrite', st => st.clear()).catch(() => {})
+  };
+})();
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const pad = n => String(n).padStart(2, '0');
 const hm = t => { const d = new Date(t); return pad(d.getHours()) + ':' + pad(d.getMinutes()); };
@@ -132,12 +148,15 @@ let tab = 'log', lastRemoved = null, medQ = '', sheet = null, open = false, snac
 const hasData = () => P.entries.length > 0 || Object.keys(P.hx).some(k => { const v = P.hx[k]; return Array.isArray(v) ? v.length : v !== '' && v != null; });
 function save(){ P.last = Date.now(); ls.set(KEY, P); updateTile(); }
 function savePrefs(){ ls.set(PREF, prefs); }
-function clearPatient(){ P = blank(); ls.del(KEY); updateTile(); }
+function clearPatient(){ P = blank(); ls.del(KEY); pdb.clear(); dropURLs(); updateTile(); }
 function expire(){
   if (!prefs.ttl || !P.last || !hasData()) return false;
   if (Date.now() - P.last > prefs.ttl * 3600e3){ clearPatient(); return true; }
   return false;
 }
+// Drop the photo of an entry that can no longer be restored.
+function forget(){ if (lastRemoved && lastRemoved.k === 'photo'){ const k = lastRemoved.id; pdb.del(k); if (urls[k]){ URL.revokeObjectURL(urls[k]); delete urls[k]; } } lastRemoved = null; }
+function gcPhotos(){ const keep = new Set(P.entries.filter(e => e.k === 'photo').map(e => e.id)); if (lastRemoved) keep.add(lastRemoved.id); pdb.keys().then(ks => ks.forEach(k => { if (!keep.has(k)) pdb.del(k); })); }
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 function addEntry(e){
   e.id = uid(); e.c = Date.now(); if (!e.t) e.t = e.c;
@@ -194,6 +213,7 @@ function label(e){
   if (e.k === 'mon') return monLabel(e);
   if (e.k === 'med') return medLabel(e);
   if (e.k === 'vitals') return vitalsLabel(e);
+  if (e.k === 'photo') return 'Photo';
   if (e.k === 'tx') return e.n + (e.d && e.d.length ? ' — ' + e.d.join(', ') : '');
   return e.n;
 }
@@ -282,6 +302,12 @@ const css = `
 .tk-row:active{background:var(--chip)}
 .tk-row .t{flex:none;font-weight:700;font-variant-numeric:tabular-nums;min-width:50px}
 .tk-row .l{flex:1;min-width:0}
+.tk-cam{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;margin-top:6px;font-size:18px;padding:16px}
+.tk-pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tk-pcell{display:flex;flex-direction:column;gap:4px;font-weight:700;font-size:13px;font-variant-numeric:tabular-nums;text-align:center}
+.tk-thumb{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;background:var(--chip);display:block}
+.tk-thumb.sm{width:64px;height:64px;margin-top:6px}
+.tk-pfull{width:100%;max-height:60vh;object-fit:contain;border-radius:10px;background:var(--chip);margin:4px 0 8px}
 .tk-row .k{flex:none;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding-top:3px}
 .tk-vgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
 .tk-vgrid .field input{font-size:24px}
@@ -324,7 +350,7 @@ document.body.appendChild(root);
 const q = s => root.querySelector(s);
 
 // ---------- render ----------
-const TABS = [['hx', 'History'], ['mon', 'Monitoring'], ['log', 'Log'], ['timeline', 'Timeline']];
+const TABS = [['hx', 'History'], ['mon', 'Monitoring'], ['log', 'Log'], ['timeline', 'Timeline'], ['photo', 'Photo']];
 function render(){
   if (!open) return;
   q('#tkTabs').innerHTML = TABS.map(([k, l]) => `<button data-tab="${k}" class="${tab === k ? 'on' : ''}">${l}${k === 'timeline' && P.entries.length ? `<span class="n">${P.entries.length}</span>` : ''}</button>`).join('');
@@ -333,8 +359,9 @@ function render(){
   tick();
   q('#tkUndo').disabled = !P.entries.length;
   const y = q('#tkBody').scrollTop;
-  const f = {log: rLog, mon: rMon, hx: rHx, timeline: rTimeline}[tab];
+  const f = {log: rLog, mon: rMon, hx: rHx, timeline: rTimeline, photo: rPhoto}[tab];
   q('#tkBody').innerHTML = f();
+  fillThumbs();
   q('#tkBody').scrollTop = y;
 }
 function tick(){
@@ -575,6 +602,47 @@ function exportText(){
   if (dr.length){ L.push(''); L.push('Drips running at export:'); for (const e of dr) L.push(`  ${e.n} ${e.dose != null ? fmtN(e.dose) + ' ' + e.unit : ''}`.trimEnd()); }
   return L.join('\n');
 }
+// ---------- photos ----------
+const urls = {};
+function dropURLs(){ for (const k in urls){ URL.revokeObjectURL(urls[k]); delete urls[k]; } }
+function photoURL(id){
+  if (urls[id]) return Promise.resolve(urls[id]);
+  return pdb.get(id).then(b => b ? (urls[id] = URL.createObjectURL(b)) : null).catch(() => null);
+}
+function fillThumbs(){
+  root.querySelectorAll('img[data-ph]').forEach(img => photoURL(img.dataset.ph).then(u => { if (u) img.src = u; else img.classList.add('missing'); }));
+}
+// Re-encode through a canvas: shrinks the file and drops EXIF metadata (GPS, device, original time).
+function shrink(file){
+  const MAX = 1600;
+  const draw = (src, w, h) => {
+    const k = Math.min(1, MAX / Math.max(w, h)), c = document.createElement('canvas');
+    c.width = Math.round(w * k); c.height = Math.round(h * k);
+    c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
+    return new Promise(res => c.toBlob(res, 'image/jpeg', 0.8));
+  };
+  if (window.createImageBitmap) return createImageBitmap(file, {imageOrientation: 'from-image'}).then(bm => draw(bm, bm.width, bm.height));
+  return new Promise((res, rej) => { const u = URL.createObjectURL(file), im = new Image(); im.onload = () => { URL.revokeObjectURL(u); res(draw(im, im.naturalWidth, im.naturalHeight)); }; im.onerror = rej; im.src = u; });
+}
+function takePhoto(file){
+  const t = Date.now();
+  snack('Saving photo…');
+  shrink(file).then(b => {
+    if (!b) throw new Error('encode');
+    const e = {k: 'photo', n: 'Photo', id: uid(), c: Date.now(), t};
+    return pdb.put(e.id, b).then(() => { P.entries.push(e); P.entries.sort((a, z) => a.t - z.t); save(); snack(`Photo · ${hm(e.t)}`, e.id); render(); });
+  }).catch(() => snack('Could not save the photo on this phone.'));
+}
+function rPhoto(){
+  const ph = P.entries.filter(e => e.k === 'photo').slice().reverse();
+  let h = `<label class="btn tk-cam"><input type="file" accept="image/*" capture="environment" id="tkCam" hidden>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Take photo</label>
+    <div class="tk-note" style="margin:8px 2px 0">Photos stay in this app on this phone and clear with the patient. They aren't included in Copy or Share.</div>`;
+  if (!ph.length) h += '<div class="empty">No photos yet.</div>';
+  else h += lbl(`Photos · ${ph.length}`) + '<div class="tk-pgrid">' + ph.map(e => `<button class="tk-pcell" data-act="edit" data-id="${e.id}"><img class="tk-thumb" data-ph="${e.id}" alt=""><span>${hm(e.t)}</span></button>`).join('') + '</div>';
+  return h;
+}
+
 function rTimeline(){
   let h = '';
   const hx = hxLine();
@@ -583,8 +651,8 @@ function rTimeline(){
   if (tt.length || dr.length) h += `<div class="card"><h3>Meds</h3><div class="tk-sum">${tt.map(o => `<div>${esc(o.n)} <b>${fmtN(o.sum)} ${esc(o.unit)}</b>${o.c > 1 ? ` in ${o.c} doses` : ''}, last ${hm(o.last)}</div>`).join('')}${dr.map(e => `<div>${esc(e.n)} drip <b>${e.dose != null ? fmtN(e.dose) + ' ' + esc(e.unit) : 'running'}</b></div>`).join('')}</div></div>`;
   if (!P.entries.length) h += '<div class="empty">Nothing logged yet.</div>';
   else {
-    const kind = {event: 'Event', med: 'Med', tx: 'Proc', vitals: 'Vitals', mon: 'Monitor'};
-    h += lbl('Timeline · tap to edit') + '<div class="list">' + P.entries.map(e => `<button class="tk-row" data-act="edit" data-id="${e.id}"><span class="t">${hm(e.t)}</span><span class="l">${esc(label(e))}</span><span class="k">${kind[e.k] || ''}</span></button>`).join('') + '</div>';
+    const kind = {event: 'Event', med: 'Med', tx: 'Proc', vitals: 'Vitals', mon: 'Monitor', photo: 'Photo'};
+    h += lbl('Timeline · tap to edit') + '<div class="list">' + P.entries.map(e => `<button class="tk-row" data-act="edit" data-id="${e.id}"><span class="t">${hm(e.t)}</span><span class="l">${esc(label(e))}${e.k === 'photo' ? `<img class="tk-thumb sm" data-ph="${e.id}" alt="">` : ''}</span><span class="k">${kind[e.k] || ''}</span></button>`).join('') + '</div>';
   }
   h += `<div class="tk-bar"><button class="btn" data-act="copy"${hasData() ? '' : ' disabled'}>Copy timeline</button>${navigator.share ? `<button class="btn ghost" data-act="share"${hasData() ? '' : ' disabled'}>Share…</button>` : ''}</div>`;
   h += `<button class="btn ghost tk-danger" data-act="askclear">Clear patient</button>`;
@@ -635,11 +703,12 @@ function txSheet(n){
 }
 function editSheet(id){
   const e = P.entries.find(x => x.id === id); if (!e) return;
-  openSheet(`<h2>${esc(label(e))}</h2>
+  openSheet(`<h2>${esc(label(e))}</h2>${e.k === 'photo' ? `<img class="tk-pfull" data-ph="${e.id}" alt="">` : ''}
     <div class="tk-lbl">Time</div><div class="tk-time"><input type="time" id="tkEt" value="${hm(e.t)}"></div>
     <div class="tk-bar" style="margin-top:16px"><button class="btn ghost" data-act="close">Cancel</button><button class="btn" data-act="savet" data-id="${id}">Save time</button></div>
     <button class="btn ghost tk-danger" data-act="del" data-id="${id}">Delete entry</button>
-    <div class="tk-note">To change a dose or detail, delete this entry and log it again.</div>`);
+    ${e.k === 'photo' ? '' : '<div class="tk-note">To change a dose or detail, delete this entry and log it again.</div>'}`);
+  fillThumbs();
 }
 function clearSheet(){
   openSheet(`<h2>Clear this patient?</h2><p class="dim" style="margin:0 0 8px">Deletes every entry and the history from this phone. This can't be undone. Copy the timeline first if you still need it for charting.</p>
@@ -744,13 +813,13 @@ root.addEventListener('click', e => {
     case 'del': case 'undo': {
       const en = P.entries.find(x => x.id === id);
       P.entries = P.entries.filter(x => x.id !== id); save(); closeSheet(); render();
-      if (en){ lastRemoved = en; snack(`Removed: ${label(en)}`, null, true); }
+      if (en){ forget(); lastRemoved = en; snack(`Removed: ${label(en)}`, null, true); }
       break;
     }
     case 'undolast': {
       if (!P.entries.length) break;
       const en = P.entries.reduce((a, x) => ((x.c || 0) >= (a.c || 0) ? x : a));
-      P.entries = P.entries.filter(x => x !== en); lastRemoved = en; save(); render();
+      P.entries = P.entries.filter(x => x !== en); forget(); lastRemoved = en; save(); render();
       snack(`Undid: ${label(en)}`, null, true);
       break;
     }
@@ -775,6 +844,7 @@ root.addEventListener('input', e => {
   if (t.dataset.h === 'wt'){ const x = num(t.value); P.hx.wt = x == null ? '' : x; save(); return; }
 });
 root.addEventListener('change', e => {
+  if (e.target.id === 'tkCam'){ const f = e.target.files && e.target.files[0]; e.target.value = ''; if (f) takePhoto(f); return; }
   if (e.target.id === 'tkAlg' && e.target.value){
     const arr = (P.hx.alg || []).filter(x => x !== 'NKDA');
     if (!arr.includes(e.target.value)) arr.push(e.target.value);
@@ -801,7 +871,7 @@ function show(push){
   if (!P.seen){ P.seen = 1; ls.set(KEY, P); tab = 'hx'; }
   if (push) history.pushState({tk: 1}, '', '#tracker');
   root.classList.remove('hidden'); document.body.style.overflow = 'hidden';
-  render();
+  render(); gcPhotos();
   if (cleared) snack('Previous patient was cleared automatically.');
   clearInterval(clockT); clockT = setInterval(() => { if (expire()){ render(); snack('Patient cleared automatically.'); } else tick(); }, 15000);
 }
