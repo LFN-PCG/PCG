@@ -95,7 +95,7 @@ const CALCS = [
       ? [{k: 'New FiO2 needed', v: '> 100%', big: true}, {k: 'Calculated', v: r(nf, 1) + '%'}]
       : [{k: 'New FiO2', v: r(nf, 0) + '%', big: true}];
     out.push({k: 'Pressure change', v: `${r(p1, 0)} → ${r(p2, 0)} mmHg`});
-    const notes = ['Keeps the inspired oxygen pressure the same: FiO2 × barometric pressure before = new FiO2 × barometric pressure after.', 'Pressures are from the standard atmosphere (sea level 760 mmHg, 8,000 ft ≈ 564 mmHg). Using inHg (30 and 22) gives slightly different numbers, e.g. 40% → 55% instead of 54%.', 'Estimate only: it ignores water vapor and the patient’s response. Titrate to SpO2.'];
+    const notes = ['Keeps the inspired oxygen pressure the same: FiO2 × barometric pressure before = new FiO2 × barometric pressure after.', 'Pressures are from the standard atmosphere (sea level 760 mmHg, 8,000 ft ≈ 565 mmHg). Using inHg (30 and 22) gives slightly different numbers, e.g. 40% → 55% instead of 54%.', 'Estimate only: it ignores water vapor and the patient’s response. Titrate to SpO2.'];
     if (nf > 100) notes.unshift('Even 100% O2 can’t match the current inspired oxygen at the new altitude. Consider a lower altitude or cabin altitude.');
     return {out, work, notes,
       disclaimer: 'Standard flight physiology gas-law estimate (Dalton’s law), not from the LFN Patient Care Guidelines. For decompression sickness, 4.02 asks for sea level cabin altitude on FW transports.',
