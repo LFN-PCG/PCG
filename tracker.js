@@ -126,7 +126,7 @@ let P = (() => { const p = ls.get(KEY, null); return p && Array.isArray(p.entrie
 let prefs = Object.assign({ttl: 12, med: {}, fold: {}}, ls.get(PREF, {}));
 if (!prefs.fold) prefs.fold = {};
 // Which dropdowns start open (until the user changes them).
-const FOLD_DEF = {'mon:vitals': true, ev: true, 'ev:Transport': true, 'ev:Resuscitation': true, 'med:drips': true, 'med:given': true};
+const FOLD_DEF = {'hx:pt': true, 'mon:vitals': true, ev: true, 'ev:Transport': true, 'ev:Resuscitation': true, 'med:drips': true, 'med:given': true};
 const isOpen = k => k in prefs.fold ? prefs.fold[k] : !!FOLD_DEF[k];
 let tab = 'log', lastRemoved = null, medQ = '', sheet = null, open = false, snackT = 0, clockT = 0;
 const hasData = () => P.entries.length > 0 || Object.keys(P.hx).some(k => { const v = P.hx[k]; return Array.isArray(v) ? v.length : v !== '' && v != null; });
@@ -535,25 +535,31 @@ function rVitals(){
 }
 function rHx(){
   const h = P.hx;
-  const chips = k => {
+  const chipRow = k => {
     const c = HX[k], val = h[k];
-    return lbl(c.l) + '<div class="tk-chips">' + c.o.map(o => {
+    return '<div class="tk-chips">' + c.o.map(o => {
       const on = c.multi ? (val || []).includes(o) : val === o;
       return `<button class="tk-chip${on ? ' on' : ''}" data-act="hx" data-k="${k}" data-v="${esc(o)}">${esc(o)}</button>`;
     }).join('') + '</div>';
   };
+  const sum = k => { const v = h[k]; return esc(Array.isArray(v) ? (v.length > 2 ? v.slice(0, 2).join(', ') + ' +' + (v.length - 2) : v.join(', ')) : (v || '')); };
   const over = h.age === '90+';
   const fresh = !P.entries.length && !h.wt && (h.age === '' || h.age == null);
-  let s = (fresh ? `<div class="tk-start"><b>New patient: enter age and weight first.</b>Weight drives the dose calculations in Log. Age picks adult or pediatric doses (pediatric is under 18). <button class="tk-sbtn" data-act="tolog" style="margin-top:8px">Skip to Log</button></div>` : '') + `<div class="warn" style="margin-top:4px">No names, dates of birth, record numbers, addresses or other identifiers. There are no free-text fields on purpose.</div>
+  const ptInfo = [h.age !== '' && h.age != null ? (over ? '90+ y' : h.age + ' ' + (h.ageU || 'y')) : '', h.wt ? h.wt + ' kg' : ''].filter(Boolean).join(' · ');
+  let s = fresh ? '<div style="text-align:right;margin:2px 0 -4px"><button class="tk-sbtn" data-act="tolog">Skip to Log ›</button></div>' : '';
+  s += fold('hx:pt', 'Age & weight', esc(ptInfo), `
     <div class="inputs">
       <div class="field"><label for="tkAge">Age</label><input id="tkAge" data-h="age" type="number" inputmode="numeric" min="0" max="89" placeholder="—" value="${over ? '' : esc(h.age ?? '')}"${over ? ' disabled' : ''}></div>
       <div class="field"><label for="tkWt">Weight (kg)</label><input id="tkWt" data-h="wt" type="number" inputmode="decimal" min="0" max="400" step="any" placeholder="—" value="${esc(h.wt ?? '')}"></div>
     </div>
-    <div class="tk-chips">${['y', 'mo'].map(u => `<button class="tk-chip${(h.ageU || 'y') === u && !over ? ' on' : ''}" data-act="ageu" data-v="${u}">${u === 'y' ? 'years' : 'months'}</button>`).join('')}<button class="tk-chip${over ? ' on' : ''}" data-act="age90">90 or older</button></div>`;
-  s += chips('sex') + chips('imp') + chips('mech') + chips('pmh') + chips('alg');
-  s += lbl('Allergy to a formulary drug') + `<select id="tkAlg" class="tk-chip" style="width:100%;color:var(--text)"><option value="">Add from formulary…</option>${MEDS.map(n => `<option>${esc(n)}</option>`).join('')}</select>`;
-  s += chips('code');
-  s += '<div class="tk-note">Ages 90 and over are recorded as "90+" because exact ages over 89 count as identifiers under HIPAA.</div>';
+    <div class="tk-chips">${['y', 'mo'].map(u => `<button class="tk-chip${(h.ageU || 'y') === u && !over ? ' on' : ''}" data-act="ageu" data-v="${u}">${u === 'y' ? 'years' : 'months'}</button>`).join('')}<button class="tk-chip${over ? ' on' : ''}" data-act="age90">90 or older</button></div>
+    <div class="tk-note" style="margin:8px 2px 0">Ages over 89 are saved as "90+".</div>`);
+  s += fold('hx:sex', HX.sex.l, sum('sex'), chipRow('sex'));
+  s += fold('hx:imp', HX.imp.l, sum('imp'), chipRow('imp'));
+  s += fold('hx:mech', HX.mech.l, sum('mech'), chipRow('mech'));
+  s += fold('hx:pmh', HX.pmh.l, sum('pmh'), chipRow('pmh'));
+  s += fold('hx:alg', HX.alg.l, sum('alg'), chipRow('alg') + `<select id="tkAlg" class="tk-chip" style="width:100%;color:var(--text);margin-top:10px"><option value="">Add a formulary drug…</option>${MEDS.map(n => `<option>${esc(n)}</option>`).join('')}</select>`);
+  s += fold('hx:code', HX.code.l, sum('code'), chipRow('code'));
   return s;
 }
 function exportText(){
