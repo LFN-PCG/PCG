@@ -458,7 +458,7 @@ function calcResult(c){
   try { res = c.compute(v); } catch (e) { res = null; }
   const el = $('#cres'); if (!el) return;
   if (!res){ el.innerHTML = '<div class="dim" style="text-align:center;padding:14px 0">Enter values above.</div>'; return; }
-  el.innerHTML = '<div class="cout">' + res.out.map(o => `<div class="co${o.big ? ' big' : ''}"><span>${esc(o.k)}</span><b>${esc(o.v)}</b></div>`).join('') + '</div>' +
+  el.innerHTML = (res.warn ? `<div class="warn" style="border:2px solid var(--warn-text)"><b>Caution:</b> ${esc(res.warn)}</div>` : '') + '<div class="cout">' + res.out.map(o => `<div class="co${o.big ? ' big' : ''}"><span>${esc(o.k)}</span><b>${esc(o.v)}</b></div>`).join('') + '</div>' +
     (res.work && res.work.length ? `<div class="card"><h3>Working</h3>${res.work.map(w => `<div class="cw">${esc(w)}</div>`).join('')}</div>` : '') +
     (res.notes && res.notes.length ? `<div class="card"><h3>Notes</h3>${res.notes.map(w => `<div class="cw">${esc(w)}</div>`).join('')}</div>` : '') +
     (res.refs && res.refs.length ? `<div class="card"><h3>Source</h3>${res.refs.map(x => `<a class="src" href="${esc(x.href)}">${esc(x.label)} ›</a>`).join('<br>')}</div>` : '');

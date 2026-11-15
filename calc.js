@@ -16,6 +16,7 @@ const wWork = v => v.wunit === 'lb' && has(num(v.w)) ? [`${r(num(v.w), 1)} lb ÷
 // Units: the dosing units used in each drug's own monograph (PDF page noted).
 const DRUGS = [
   {n: 'Amiodarone', c: 1.8, u: 'mg', mix: '450 mg / 250 mL', units: ['mg/min', 'mcg/kg/min'], sec: '12.07', p: 319},
+  {n: 'Amiodarone (400 mg / 250 mL)', c: 1.6, u: 'mg', mix: '400 mg / 250 mL', units: ['mg/min', 'mcg/kg/min'], sec: '12.07', p: 319, warn: 'Amiodarone is listed twice in the mix table on p.310 (450 mg / 250 mL and 400 mg / 250 mL). The second line may be a typo for another drug. Confirm the bag concentration before using this result.'},
   {n: 'Clevidipine', c: 0.5, u: 'mg', mix: '50 mg / 100 mL', units: ['mg/hr'], sec: '12.15', p: 327},
   {n: 'Dexmedetomidine', c: 4, u: 'mcg', mix: '400 mcg / 100 mL', units: ['mcg/kg/hr'], sec: '12.18', p: 331},
   {n: 'Diltiazem', c: 1, u: 'mg', mix: '100 mg / 100 mL', units: ['mg/hr'], sec: '12.21', p: 334},
@@ -36,6 +37,7 @@ const DRUGS = [
   {n: 'Nitroglycerin', c: 0.2, u: 'mg', mix: '50 mg / 250 mL', units: ['mcg/min'], sec: '12.61', p: 381},
   {n: 'Nitroprusside', c: 0.2, u: 'mg', mix: '50 mg / 250 mL', units: ['mcg/kg/min'], sec: '12.62', p: 383},
   {n: 'Norepinephrine', c: 16, u: 'mcg', mix: '4 mg / 250 mL', units: ['mcg/min', 'mcg/kg/min'], sec: '12.63', p: 384},
+  {n: 'Octreotide', c: 2, u: 'mg', mix: '500 mg / 250 mL', units: ['mcg/hr'], sec: '12.64', p: 385, warn: 'The guideline lists octreotide as 500 mg / 250 mL (p.310 and p.384), but its dosing is in mcg (25–50 mcg/hr). The mix is likely 500 mcg / 250 mL (2 mcg/mL); if so this result is 1000× too low. Confirm the bag concentration before using this result.'},
   {n: 'Phenylephrine', c: 0.08, u: 'mg', mix: '20 mg / 250 mL', units: ['mcg/min', 'mcg/kg/min'], sec: '12.68', p: 389},
   {n: 'Propofol', c: 10, u: 'mg', mix: '1000 mg / 100 mL', units: ['mcg/kg/min'], sec: '12.72', p: 393},
   {n: 'Vasopressin', c: 0.2, u: 'units', mix: '20 units / 100 mL', units: ['units/min'], sec: '12.83', p: 405},
@@ -76,19 +78,27 @@ const CALCS = [
   fields: [
     ...W,
     {id: 'rr', label: 'Max respiratory rate', type: 'number', unit: '/min'},
-    {id: 'bias', label: 'Bias flow', type: 'number', unit: 'L/min'},
+    {id: 'fio2', label: 'FiO2', type: 'number', unit: '% or 0–1', def: '100'},
+    {id: 'bt', label: 'Bias flow', type: 'seg', options: ['Adult 10', 'Peds 5', 'Other'], def: 'Adult 10'},
+    {id: 'bias', label: 'Bias flow', type: 'number', unit: 'L/min', show: v => v.bt === 'Other'},
     {id: 'p1', label: 'Tank pressure (optional, for duration)', type: 'number', unit: 'psi'},
     {id: 'f', label: 'Tank factor', type: 'number', unit: '', def: '0.16'},
   ],
   compute(v){
-    const w = kg(v), rr = num(v.rr), bias = isFinite(num(v.bias)) ? num(v.bias) : NaN;
-    if (!has(w) || !has(rr) || !isFinite(bias)) return null;
-    const vt = 10 * w, rate = rr + 5, mv = vt * rate / 1000, tot = mv + bias;
-    const work = [...wWork(v), `1. Tidal volume: ${r(w, 1)} kg × 10 mL/kg = ${r(vt, 0)} mL`, `2. Rate: max RR ${rr} + 5 = ${rate} /min`, `Minute volume: ${r(vt, 0)} mL × ${rate} = ${r(mv, 2)} L/min`, `3. Plus bias flow: ${r(mv, 2)} + ${bias} = ${r(tot, 2)} L/min`];
-    const out = [{k: 'O2 use', v: r(tot, 1) + ' L/min', big: true}, {k: 'Tidal volume', v: r(vt, 0) + ' mL'}, {k: 'Minute volume', v: r(mv, 2) + ' L/min'}];
+    const w = kg(v), rr = num(v.rr);
+    const bias = v.bt === 'Adult 10' ? 10 : v.bt === 'Peds 5' ? 5 : num(v.bias);
+    let fi = num(v.fio2);
+    if (!has(w) || !has(rr) || !isFinite(bias) || !has(fi)) return null;
+    const work = [...wWork(v)];
+    if (fi > 1){ work.push(`FiO2 ${fi}% = ${r(fi / 100, 2)}`); fi = fi / 100; }
+    if (fi < 0.21 || fi > 1) return {out: [{k: 'Check FiO2', v: '21–100%'}], work};
+    const vt = 10 * w, rate = rr + 5, mv = vt * rate / 1000, tot = mv + bias, frac = (fi - 0.21) / 0.79, o2 = tot * frac;
+    work.push(`1. Tidal volume: ${r(w, 1)} kg × 10 mL/kg = ${r(vt, 0)} mL`, `2. Rate: max RR ${rr} + 5 = ${rate} /min`, `Minute volume: ${r(vt, 0)} mL × ${rate} = ${r(mv, 2)} L/min`, `3. Plus bias flow: ${r(mv, 2)} + ${bias} = ${r(tot, 2)} L/min total gas`, `O2 share of total gas at FiO2 ${r(fi, 2)}: (${r(fi, 2)} − 0.21) ÷ 0.79 = ${r(frac, 3)}`, `O2 from tank: ${r(tot, 2)} × ${r(frac, 3)} = ${r(o2, 2)} L/min`);
+    const out = [{k: 'O2 from tank', v: r(o2, 1) + ' L/min', big: true}, {k: 'Total gas (MV + bias)', v: r(tot, 1) + ' L/min'}, {k: 'Tidal volume', v: r(vt, 0) + ' mL'}, {k: 'Minute volume', v: r(mv, 2) + ' L/min'}];
     const p = num(v.p1), f = num(v.f);
-    if (has(p) && has(f)){ const t = (p - 200) * f / tot; out.push({k: 'Tank duration', v: mins(t)}); work.push(`Duration: (${p} − 200) × ${f} ÷ ${r(tot, 2)} = ${r(t)} min`); }
-    return {out, work, notes: ['From crew notes: 1) tidal volume at 10 mL/kg, 2) use the max RR plus 5 for margin of error, 3) don’t forget bias flow, 4) Intubated it >60% or nopal >20/10 (as written in the notes).', 'Assumes the ventilator draws all of its gas from the O2 tank (100% FiO2), which is the worst case.']};
+    if (has(p) && has(f) && o2 > 0){ const t = (p - 200) * f / o2; out.push({k: 'Tank duration', v: mins(t)}); work.push(`Duration: (${p} − 200) × ${f} ÷ ${r(o2, 2)} = ${r(t)} min`); }
+    return {out, work, refs: [{label: '8.23 Mechanical Ventilation: low pressure O2 bias flow, p.229', href: '#8.23@230'}],
+      notes: ['From crew notes: 1) tidal volume at 10 mL/kg, 2) use the max RR plus 5 for margin of error, 3) don’t forget bias flow, 4) Intubated it >60% or nopal >20/10 (as written in the notes).', 'Bias flow defaults are from 8.23 (low pressure oxygen): 10 LPM adults, 5 LPM pediatrics. 8.23 sets the actual O2 flow from the chart for that bias flow, minute ventilation and FiO2; use the chart when it applies.', 'FiO2 adjustment assumes the rest of the gas is room air (21% O2). At FiO2 100% all gas comes from the tank.']};
   }
 },
 {
@@ -136,12 +146,12 @@ const CALCS = [
     } else {
       const dose = num(v.dose); if (!(dose >= 0) || v.dose === '') return null;
       const rate = dose * perUnit * w * t / c;
-      work.push(`Rate = dose${factorTxt} ÷ concentration`, `${dose} ${v.du}${factorTxt} = ${r(dose * perUnit * w * t, 4)} ${cu}/hr`, `${r(dose * perUnit * w * t, 4)} ÷ ${c} ${cu}/mL = ${r(rate, 2)} mL/hr`);
-      out = [{k: 'Pump rate', v: `${r(rate, 1)} mL/hr`, big: true}];
+      work.push(`Rate = dose${factorTxt} ÷ concentration`, `${dose} ${v.du}${factorTxt} = ${r(dose * perUnit * w * t, 4)} ${cu}/hr`, `${r(dose * perUnit * w * t, 4)} ÷ ${c} ${cu}/mL = ${r(rate, rate < 1 ? 3 : 2)} mL/hr`);
+      out = [{k: 'Pump rate', v: `${r(rate, rate < 1 ? 3 : 1)} mL/hr`, big: true}];
     }
     const refs = [{label: '12.01 Recommended Infusion Mixtures, p.310', href: '#12.01@311'}];
     if (d) refs.push({label: `${d.sec} ${d.n.replace(/ \(.*/, '')} monograph, p.${d.p - 1}`, href: `#${d.sec}@${d.p}`});
-    return {out, work, refs, notes: d ? [`Dose units offered are the ones used in the ${d.n.replace(/ \(.*/, '')} monograph.`] : ['Custom concentration: check it against the bag label.']};
+    return {out, work, refs, warn: d && d.warn, notes: d ? [`Dose units offered are the ones used in the ${d.n.replace(/ \(.*/, '')} monograph.`] : ['Custom concentration: check it against the bag label.']};
   }
 },
 {
