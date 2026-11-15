@@ -103,7 +103,7 @@ let P = (() => { const p = ls.get(KEY, null); return p && Array.isArray(p.entrie
 let prefs = Object.assign({ttl: 12, med: {}, fold: {}}, ls.get(PREF, {}));
 if (!prefs.fold) prefs.fold = {};
 // Which dropdowns start open (until the user changes them).
-const FOLD_DEF = {ev: true, 'ev:Transport': true, 'ev:Resuscitation': true, 'med:drips': true, 'med:given': true, 'med:find': true};
+const FOLD_DEF = {ev: true, 'ev:Transport': true, 'ev:Resuscitation': true, 'med:drips': true, 'med:given': true};
 const isOpen = k => k in prefs.fold ? prefs.fold[k] : !!FOLD_DEF[k];
 let tab = 'log', lastRemoved = null, medQ = '', sheet = null, open = false, snackT = 0, clockT = 0;
 const hasData = () => P.entries.length > 0 || Object.keys(P.hx).some(k => { const v = P.hx[k]; return Array.isArray(v) ? v.length : v !== '' && v != null; });
@@ -339,7 +339,7 @@ function rMeds(){
   let f = `<div class="searchbox" style="margin:4px 0 4px;height:52px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
     <input id="tkMq" type="search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Find a formulary drug" value="${esc(medQ)}"></div>`;
   f += '<div id="tkMlist">' + medList() + '</div>';
-  return h + fold('med:find', 'Formulary', '', f, true);
+  return h + '<div style="margin-top:8px">' + f + '</div>';
 }
 function medList(){
   const s = medQ.trim().toLowerCase();
