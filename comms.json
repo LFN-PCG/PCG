@@ -1,4 +1,319 @@
 {
-  "updated": "",
-  "items": []
+ "updated": "2026-11-15",
+ "items": [
+  {
+   "name": "Radio dials",
+   "group": "Reference",
+   "contacts": [
+    {
+     "label": "Tac 1 dial",
+     "freq": "Top line / VHF / UHF"
+    },
+    {
+     "label": "Tac 2 dial",
+     "freq": "Second line / 800 MHz"
+    },
+    {
+     "label": "Tac 3 dial",
+     "freq": "Sat phone"
+    }
+   ]
+  },
+  {
+   "name": "Harborview",
+   "group": "VHF-FM1",
+   "contacts": [
+    {
+     "label": "Radio",
+     "freq": "Z10 C18"
+    },
+    {
+     "label": "Med doc",
+     "phone": "206-744-3253"
+    },
+    {
+     "label": "Trauma doc",
+     "phone": "206-744-2042"
+    }
+   ]
+  },
+  {
+   "name": "Kadlec",
+   "group": "VHF-FM1",
+   "contacts": [
+    {
+     "label": "Radio",
+     "freq": "Z10 C19"
+    }
+   ]
+  },
+  {
+   "name": "OR State Fire Net",
+   "group": "VHF-FM1",
+   "contacts": [
+    {
+     "label": "Radio",
+     "freq": "Z3 C1"
+    }
+   ]
+  },
+  {
+   "name": "OR State SAR",
+   "group": "VHF-FM1",
+   "contacts": [
+    {
+     "label": "Radio",
+     "freq": "Z22 C9"
+    }
+   ]
+  },
+  {
+   "name": "Providence Sacred Heart",
+   "group": "VHF-FM1",
+   "contacts": [
+    {
+     "label": "Radio",
+     "freq": "Sat phone"
+    },
+    {
+     "label": "Radio",
+     "freq": "Z18 C4"
+    }
+   ]
+  },
+  {
+   "name": "Red Net",
+   "group": "VHF-FM1",
+   "contacts": [
+    {
+     "label": "Radio",
+     "freq": "Z19 C15"
+    }
+   ]
+  },
+  {
+   "name": "Sunnyside",
+   "group": "VHF-FM1",
+   "contacts": [
+    {
+     "label": "Radio",
+     "freq": "Z10 C27"
+    }
+   ]
+  },
+  {
+   "name": "SMMC",
+   "group": "VHF-FM1",
+   "contacts": [
+    {
+     "label": "Radio",
+     "freq": "Z23 C2"
+    }
+   ]
+  },
+  {
+   "name": "Trios",
+   "group": "VHF-FM1",
+   "contacts": [
+    {
+     "label": "Radio",
+     "freq": "Z10 C22"
+    }
+   ],
+   "sub": "Kennewick"
+  },
+  {
+   "name": "All area Boise hospitals",
+   "group": "VHF-FM1",
+   "contacts": [
+    {
+     "label": "Radio",
+     "freq": "Zone 11 C1"
+    }
+   ]
+  },
+  {
+   "name": "800 MHz zone ZU",
+   "group": "800 MHz",
+   "contacts": [
+    {
+     "label": "Radio",
+     "freq": "ZU Ch 10-18"
+    }
+   ],
+   "sub": "Zone 26"
+  },
+  {
+   "name": "Good Sam",
+   "group": "800 MHz",
+   "contacts": [
+    {
+     "label": "Radio",
+     "freq": "ZU Ch 11"
+    }
+   ]
+  },
+  {
+   "name": "MaryBridge",
+   "group": "800 MHz",
+   "contacts": [
+    {
+     "label": "Radio",
+     "freq": "ZU Ch 14"
+    }
+   ]
+  },
+  {
+   "name": "St Joes",
+   "group": "800 MHz",
+   "contacts": [
+    {
+     "label": "Radio",
+     "freq": "ZU Ch 17"
+    }
+   ]
+  },
+  {
+   "name": "Tacoma Gen",
+   "group": "800 MHz",
+   "contacts": [
+    {
+     "label": "Radio",
+     "freq": "ZU Ch 18"
+    }
+   ]
+  },
+  {
+   "name": "Emanuel",
+   "group": "800 MHz",
+   "contacts": [
+    {
+     "label": "Radio",
+     "freq": "Z1 C6"
+    }
+   ]
+  },
+  {
+   "name": "OHSU",
+   "group": "800 MHz",
+   "contacts": [
+    {
+     "label": "Radio",
+     "freq": "Z1 C5"
+    }
+   ]
+  },
+  {
+   "name": "Providence Portland",
+   "group": "800 MHz",
+   "contacts": [
+    {
+     "label": "Radio",
+     "freq": "Z1 C9"
+    }
+   ]
+  },
+  {
+   "name": "Meridan Park",
+   "group": "800 MHz",
+   "contacts": [
+    {
+     "label": "Radio",
+     "freq": "Z3 Ch 16"
+    }
+   ]
+  },
+  {
+   "name": "Hoquiam",
+   "group": "UHF zone 48",
+   "contacts": [
+    {
+     "label": "Radio",
+     "freq": "U9 C4"
+    }
+   ]
+  },
+  {
+   "name": "Maynard",
+   "group": "UHF zone 48",
+   "contacts": [
+    {
+     "label": "Radio",
+     "freq": "U9 C1"
+    }
+   ]
+  },
+  {
+   "name": "Badger",
+   "group": "Other channels",
+   "contacts": [
+    {
+     "label": "Radio",
+     "freq": "Z3 C17"
+    }
+   ]
+  },
+  {
+   "name": "Mica Repeater",
+   "group": "Other channels",
+   "contacts": [
+    {
+     "label": "Radio",
+     "freq": "Z3 C27"
+    }
+   ]
+  },
+  {
+   "name": "Medic 400",
+   "group": "Other channels",
+   "contacts": [
+    {
+     "label": "Radio",
+     "freq": "Z1 C26"
+    }
+   ]
+  },
+  {
+   "name": "NEON",
+   "group": "Other channels",
+   "contacts": [
+    {
+     "label": "Radio",
+     "freq": "Z1 C26"
+    }
+   ]
+  },
+  {
+   "name": "Mission",
+   "group": "Other channels",
+   "contacts": [
+    {
+     "label": "Radio",
+     "freq": "Z3 C19"
+    }
+   ]
+  },
+  {
+   "name": "Shaffer",
+   "group": "Other channels",
+   "contacts": [
+    {
+     "label": "VHF",
+     "freq": "Z11 C5"
+    }
+   ],
+   "sub": "Boise"
+  },
+  {
+   "name": "Snow bank",
+   "group": "Other channels",
+   "contacts": [
+    {
+     "label": "Radio",
+     "freq": "Z11 C6"
+    }
+   ],
+   "sub": "West of McCall"
+  }
+ ]
 }

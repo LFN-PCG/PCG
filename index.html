@@ -65,7 +65,7 @@ body.landing .hero{display:flex}
 .tile.wide{grid-column:1 / -1;flex-direction:row;align-items:center;justify-content:flex-start;gap:14px;min-height:76px}
 .tile[data-go="comms"] .ic{background:var(--c-comms)}
 .cx{border-top:1px solid var(--line)}
-.cx:first-child{border-top:0}
+.cx:first-child,.sec-label + .cx{border-top:0}
 .cx-h{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:14px 2px;min-height:60px}
 .cx-h .it-main{flex:1}
 .cx-h .chev{transition:transform .15s}
@@ -440,11 +440,13 @@ function renderComms(){
     <div class="list" id="clist"></div>${COMMS.updated ? `<div class="foot">Updated ${esc(COMMS.updated)}</div>` : ''}`;
   const draw = () => {
     const q = norm($('#cq').value.trim());
-    const hit = it => !q || norm([it.name, it.sub, ...(it.contacts || []).flatMap(c => [c.label, c.freq, c.phone, c.note])].filter(Boolean).join(' ')).includes(q);
+    const hit = it => !q || norm([it.name, it.sub, it.group, ...(it.contacts || []).flatMap(c => [c.label, c.freq, c.phone, c.note])].filter(Boolean).join(' ')).includes(q);
+    let lastG = null;
     $('#clist').innerHTML = items.map((it, i) => ({it, i})).filter(({it}) => hit(it)).map(({it, i}) => {
       const open = openComms.has(i) || (q && items.filter(hit).length <= 3);
       const rows = (it.contacts || []).map(c => `<div class="cx-r"><div class="k">${esc(c.label || '')}${c.note ? `<small>${esc(c.note)}</small>` : ''}</div>${c.freq ? `<span class="f">${esc(c.freq)}</span>` : ''}${c.phone ? `<a class="tel" href="tel:${esc(c.phone.replace(/[^0-9+]/g, ''))}">${esc(c.phone)}</a>` : ''}</div>`).join('');
-      return `<div class="cx${open ? ' open' : ''}"><button class="cx-h" data-cx="${i}"><span class="it-main"><div class="it-title">${esc(it.name)}</div>${it.sub ? `<div class="it-sub">${esc(it.sub)}</div>` : ''}</span>${chev}</button>${open ? `<div class="cx-b">${rows}</div>` : ''}</div>`;
+      const hdr = it.group && it.group !== lastG ? `<div class="sec-label" style="padding:0 2px">${esc(it.group)}</div>` : ''; lastG = it.group;
+      return hdr + `<div class="cx${open ? ' open' : ''}"><button class="cx-h" data-cx="${i}"><span class="it-main"><div class="it-title">${esc(it.name)}</div>${it.sub ? `<div class="it-sub">${esc(it.sub)}</div>` : ''}</span>${chev}</button>${open ? `<div class="cx-b">${rows}</div>` : ''}</div>`;
     }).join('') || '<div class="empty">No matches.</div>';
   };
   $('#cq').addEventListener('input', draw);
