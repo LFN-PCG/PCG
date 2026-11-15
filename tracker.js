@@ -258,10 +258,12 @@ document.body.appendChild(root);
 const q = s => root.querySelector(s);
 
 // ---------- render ----------
-const TABS = [['events', 'Events'], ['meds', 'Meds'], ['tx', 'Procedures'], ['vitals', 'Vitals'], ['hx', 'History'], ['timeline', 'Timeline']];
+const TABS = [['timeline', 'Timeline'], ['hx', 'History'], ['events', 'Events'], ['meds', 'Meds'], ['tx', 'Procedures'], ['vitals', 'Vitals']];
 function render(){
   if (!open) return;
   q('#tkTabs').innerHTML = TABS.map(([k, l]) => `<button data-tab="${k}" class="${tab === k ? 'on' : ''}">${l}${k === 'timeline' && P.entries.length ? `<span class="n">${P.entries.length}</span>` : ''}</button>`).join('');
+  const tb = q('#tkTabs'), on = q('#tkTabs .on');
+  if (on && (on.offsetLeft < tb.scrollLeft || on.offsetLeft + on.offsetWidth > tb.scrollLeft + tb.clientWidth)) tb.scrollLeft = on.offsetLeft - 10;
   tick();
   const y = q('#tkBody').scrollTop;
   const f = {events: rEvents, meds: rMeds, tx: rTx, vitals: rVitals, hx: rHx, timeline: rTimeline}[tab];

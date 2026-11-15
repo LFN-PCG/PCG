@@ -1,4 +1,4 @@
-const CACHE = 'protocols-2026.09.15-64b2b5d2'; // set by tools/release.py
+const CACHE = 'protocols-2026.09.15-036efcab'; // set by tools/release.py
 const FILES = ['./', 'index.html', 'data.json', 'pdf.min.js', 'pdf.worker.min.js', 'manifest.webmanifest', 'changes.json', 'peds.json', 'comms.json', 'calc.js', 'tracker.js', 'fonts/atkinson-400.woff2', 'fonts/atkinson-700.woff2', 'icon.svg', 'icon-180.png', 'icon-512.png', 'guidelines.pdf'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
