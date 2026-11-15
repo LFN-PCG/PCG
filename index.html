@@ -162,6 +162,7 @@ body.landing .hero{display:flex}
 .row .v small{font-size:13px;font-weight:500;color:var(--muted)}
 .calc{font-size:12.5px;color:var(--muted);margin-top:6px;line-height:1.45}
 .src{display:inline-block;margin-top:8px;font-size:13px;font-weight:600;color:var(--accent);padding:6px 0}
+span.src{color:inherit;font-weight:600}
 .dim{color:var(--muted);font-size:14px}
 
 /* changes */
@@ -445,7 +446,7 @@ function renderCalcOne(id){
   for (const f of c.fields){
     if (f.show && !f.show(v)) continue;
     if (f.type === 'number') h += `<div class="field"><label for="cf_${f.id}">${esc(f.label)}${val(f.unit) ? ` <span>(${esc(val(f.unit))})</span>` : ''}</label><input id="cf_${f.id}" data-cf="${f.id}" type="text" inputmode="decimal" autocomplete="off" value="${esc(String(v[f.id]))}"></div>`;
-    else if (f.type === 'seg') h += `<div class="seg">${f.options.map(o => `<button data-cs="${f.id}" data-v="${esc(o)}" class="${v[f.id] === o ? 'on' : ''}">${esc(o)}</button>`).join('')}</div>`;
+    else if (f.type === 'seg') h += (f.label ? `<div class="sec-label">${esc(f.label)}</div>` : '') + `<div class="seg">${f.options.map(o => `<button data-cs="${f.id}" data-v="${esc(o)}" class="${v[f.id] === o ? 'on' : ''}">${esc(o)}</button>`).join('')}</div>`;
     else if (f.type === 'select') h += `<div class="field"><label for="cf_${f.id}">${esc(f.label)}</label><select id="cf_${f.id}" data-csel="${f.id}">${val(f.options).map(o => `<option${v[f.id] === o ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select></div>`;
     else if (f.type === 'pick') h += `<div class="sec-label">${esc(f.label)}</div><div class="pick">${f.options.map(o => `<button data-cs="${f.id}" data-v="${esc(o)}" class="${v[f.id] === o ? 'on' : ''}">${esc(o)}</button>`).join('')}</div>`;
   }
@@ -462,7 +463,7 @@ function calcResult(c){
   el.innerHTML = (res.disclaimer ? `<div class="warn" style="border:2px solid var(--warn-text)"><b>Not LFN-specific.</b> ${esc(res.disclaimer)}</div>` : '') + (res.warn ? `<div class="warn" style="border:2px solid var(--warn-text)"><b>Caution:</b> ${esc(res.warn)}</div>` : '') + '<div class="cout">' + res.out.map(o => `<div class="co${o.big ? ' big' : ''}"><span>${esc(o.k)}</span><b>${esc(o.v)}</b></div>`).join('') + '</div>' +
     (res.work && res.work.length ? `<div class="card"><h3>Working</h3>${res.work.map(w => `<div class="cw">${esc(w)}</div>`).join('')}</div>` : '') +
     (res.notes && res.notes.length ? `<div class="card"><h3>Notes</h3>${res.notes.map(w => `<div class="cw">${esc(w)}</div>`).join('')}</div>` : '') +
-    (res.refs && res.refs.length ? `<div class="card"><h3>Source</h3>${res.refs.map(x => `<a class="src" href="${esc(x.href)}"${/^https?:/.test(x.href) ? ' target="_blank" rel="noopener"' : ''}>${esc(x.label)} ›</a>`).join('<br>')}</div>` : '');
+    (res.refs && res.refs.length ? `<div class="card"><h3>Source</h3>${res.refs.map(x => x.href ? `<a class="src" href="${esc(x.href)}"${/^https?:/.test(x.href) ? ' target="_blank" rel="noopener"' : ''}>${esc(x.label)} ›</a>` : `<span class="src">${esc(x.label)}</span>`).join('<br>')}</div>` : '');
 }
 document.addEventListener('input', e => {
   const k = e.target.dataset && e.target.dataset.cf; if (!k || !panel || !panel.startsWith('calc/')) return;

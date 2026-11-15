@@ -52,80 +52,216 @@ const toConc = (amt, from, to) => {
   return amt * MASS[from] / MASS[to];
 };
 
-const CALCS = [
+// ---- Oxygen: LFN Policy 201.03 (Appendix A and B, reviewed 07/2026) ----
+// Appendix B tank table: max psi and conversion factor (L per psi).
+const TANKS = {
+  'D cylinder': {max: 2216, f: 0.16},
+  'E cylinder': {max: 2216, f: 0.28},
+  'M tank': {max: 2216, f: 1.56},
+  'PC-12 Spectrum sled': {max: 2216, f: 1.57},
+  'EC-135 (2 tanks)': {max: 1850, f: 1.18, two: true},
+  'AW119kx gas': {max: 1800, f: 1.22},
+  'Bell 407 gas': {max: 2216, f: 1.56},
+  'Other': {},
+};
+const TANK_NAMES = Object.keys(TANKS);
+const RESIDUAL = 200; // psi, Appendix B
+const REF_B = {label: 'LFN Policy 201.03 Appendix B: Duration of Oxygen Supply (07/2026)'};
+const REF_A = {label: 'LFN Policy 201.03 Appendix A: Conversion Table for In-Flight O2 (07/2026)'};
+const REF_P = {label: 'LFN Policy 201.03: Cabin Altitude Guidelines and Oxygen Requirements (07/2026)'};
+// Appendix B p.2: Ohio flow meter reading -> actual flow at altitude.
+const OHIO = {readings: [2, 4, 6, 8, 10, 12], '2,000 ft': [2.1, 4.2, 6.3, 8.4, 10.5, 12.6], '8,000 ft': [2.6, 5.3, 7.9, 10.6, 13.2, 15.8]};
+const OHIO_OPTS = ['Ground', '2,000 ft', '8,000 ft'];
+// Returns {flow, how} for an Ohio flow meter reading at the chosen altitude.
+const ohio = (reading, alt) => {
+  if (alt === 'Ground' || !OHIO[alt]) return {flow: reading, how: ''};
+  const R = OHIO.readings, A = OHIO[alt];
+  const i = R.indexOf(reading);
+  if (i >= 0) return {flow: A[i], how: `Ohio flow meter ${reading} L/min at ${alt} = ${A[i]} L/min actual (Appendix B table)`};
+  if (reading > R[0] && reading < R[R.length - 1]){
+    let j = 0; while (R[j + 1] < reading) j++;
+    const fl = A[j] + (A[j + 1] - A[j]) * (reading - R[j]) / (R[j + 1] - R[j]);
+    return {flow: fl, how: `Ohio flow meter ${reading} L/min at ${alt} ≈ ${r(fl, 2)} L/min actual (between table rows ${R[j]} and ${R[j + 1]})`, est: true};
+  }
+  const k = reading < R[0] ? 0 : R.length - 1, fl = reading * A[k] / R[k];
+  return {flow: fl, how: `Ohio flow meter ${reading} L/min at ${alt} ≈ ${r(fl, 2)} L/min actual (outside the table; scaled from the ${R[k]} L/min row, ${A[k]}/${R[k]})`, est: true};
+};
+const ohioField = {id: 'alt', label: 'Ohio flow meter at', type: 'seg', options: OHIO_OPTS, def: 'Ground'};
+const ohioNote = 'Altitude correction applies to flow set on an Ohio flow meter (Appendix B). Appendix B gives only the 2,000 ft and 8,000 ft columns.';
+// Usable gas in a tank: (psi - 200) x factor; EC-135 sums two tanks.
+const tankGas = (v, work) => {
+  const t = TANKS[v.tank] || {};
+  const f = v.tank === 'Other' ? num(v.cf) : t.f;
+  if (!has(f)) return null;
+  const ps = t.two ? [num(v.p), num(v.p2)] : [num(v.p)];
+  if (ps.some(p => !isFinite(p) || p < 0) || !ps.some(has)) return null;
+  let gas = 0; const warn = [];
+  ps.forEach((p, i) => {
+    const lab = t.two ? `Tank ${i + 1}: ` : '';
+    const use = Math.max(0, p - RESIDUAL), g = use * f; gas += g;
+    work.push(`${lab}(${p} psi − ${RESIDUAL} psi residual) × ${f} = ${r(g, 0)} L usable`);
+    if (t.max && p > t.max * 1.05) warn.push(`${lab}${p} psi is above this tank’s ${t.max.toLocaleString()} psi maximum in Appendix B. Check the gauge reading.`);
+  });
+  if (t.two) work.push(`Both tanks: ${r(gas, 0)} L usable`);
+  return {gas, f, warn};
+};
+
+const O2CALCS = [
 {
-  id: 'o2cyl', title: 'O2 cylinder duration', color: 'prot',
+  id: 'o2cyl', title: 'O2 tank duration', color: 'prot',
   fields: [
-    {id: 'cyl', label: 'Cylinder', type: 'seg', options: ['D', 'E', 'M', 'G', 'H/K', 'Other'], def: 'D'},
-    {id: 'cf', label: 'Cylinder factor', type: 'number', unit: 'L/psi', show: v => v.cyl === 'Other'},
-    {id: 'p', label: 'Gauge pressure', type: 'number', unit: 'psi'},
-    {id: 'flow', label: 'Flow rate', type: 'number', unit: 'L/min'},
+    {id: 'tank', label: 'Tank', type: 'pick', options: TANK_NAMES, def: 'D cylinder'},
+    {id: 'cf', label: 'Conversion factor', type: 'number', unit: 'L/psi', show: v => v.tank === 'Other'},
+    {id: 'p', label: 'Gauge pressure', type: 'number', unit: v => TANKS[v.tank] && TANKS[v.tank].two ? 'psi, tank 1' : 'psi'},
+    {id: 'p2', label: 'Gauge pressure', type: 'number', unit: 'psi, tank 2', show: v => !!(TANKS[v.tank] && TANKS[v.tank].two)},
+    {id: 'flow', label: 'Flow rate (flow meter reading)', type: 'number', unit: 'L/min'},
+    ohioField,
   ],
   compute(v){
-    const F = {D: 0.16, E: 0.28, M: 1.56, G: 2.41, 'H/K': 3.14};
-    const f = v.cyl === 'Other' ? num(v.cf) : F[v.cyl], p = num(v.p), fl = num(v.flow);
-    if (!has(f) || !has(p) || !has(fl)) return null;
-    const m = p * f / fl;
-    return {out: [{k: 'Duration', v: mins(m), big: true}, {k: 'Oxygen in cylinder', v: r(p * f, 0) + ' L'}],
-      work: [`Cylinder factor: ${v.cyl === 'Other' ? 'entered' : v.cyl + ' cylinder'} = ${f} L/psi`, `${p} psi × ${f} = ${r(p * f, 0)} L`, `${r(p * f, 0)} L ÷ ${fl} L/min = ${r(m)} min`],
-      disclaimer: 'Standard EMS / respiratory therapy formula from published sources (below), not from the LFN Patient Care Guidelines. This runs the cylinder to empty (no safe residual). Confirm your cylinder size and check the gauge often.',
-      refs: [{label: 'Tampa General: Oxygen duration (psi × factor ÷ flow)', href: 'https://extmedia.tgh.org/sites/default/files/oxygen-duration-nugget-.pdf'}, {label: 'Texas A&M EMS: Oxygen Duration (cylinder factors)', href: 'https://ems.tamu.edu/wp-content/uploads/2023/03/APP-00-Oxygen-Duration.pdf'}, {label: 'OpenExamPrep FP-C: transport oxygen systems', href: 'https://open-exam-prep.com/study-guides/fp-c/airway-anesthesia-analgesics/oxygen-systems'}],
-      notes: ['Duration (min) = gauge psi × cylinder factor ÷ flow (L/min). Cylinder factor = full cylinder volume (L) ÷ full pressure (psi).', 'Factors: D 0.16, E 0.28, M 1.56, G 2.41, H/K 3.14 L/psi. Texas A&M lists H/K as 3.15.', 'At altitude: no published correction was found. Gas expands at lower pressure, so with the flow set the same the cylinder should last at least this long. Treat this sea-level number as the minimum.', 'On a ventilator at FiO2 100%, the flow from the tank is the minute volume plus any bias flow (Tampa General). Use the ventilator’s own estimate when it has one.']};
+    const work = [], fl = num(v.flow);
+    if (!has(fl)) return null;
+    const t = tankGas(v, work); if (!t) return null;
+    const o = ohio(fl, v.alt); if (o.how) work.push(o.how);
+    const m = t.gas / o.flow; work.push(`${r(t.gas, 0)} L ÷ ${r(o.flow, 2)} L/min = ${r(m)} min`);
+    const out = [{k: 'Duration', v: mins(m), big: true}, {k: 'Usable oxygen (above 200 psi)', v: r(t.gas, 0) + ' L'}];
+    if (o.how) out.push({k: 'Actual flow at altitude', v: r(o.flow, 1) + ' L/min'});
+    const notes = ['LFN formula (Appendix B): (gauge psi − 200 psi residual) × conversion factor ÷ flow = minutes. Example from the policy: D cylinder, 1,500 psi, 10 L/min = 20 minutes.', 'Factors (Appendix B): D 0.16, E 0.28, M 1.56, PC-12 Spectrum sled 1.57, EC-135 1.18 per tank (2 tanks), AW119kx gas 1.22, Bell 407 gas 1.56.', ohioNote, 'Before transport, use the "O2 for transport" calculator to check supply against the trip plus reserve (Policy 201.03 N).'];
+    return {out, work, notes, warn: t.warn.join(' ') + (o.est ? (t.warn.length ? ' ' : '') + 'This flow is not a row in the Appendix B flow meter table, so the altitude correction is estimated.' : '') || undefined, refs: [REF_B]};
   }
 },
 {
   id: 'lox', title: 'LOX duration', color: 'prot',
   fields: [
-    {id: 'qu', label: 'LOX gauge reads in', type: 'seg', options: ['Liters', 'Pounds', 'Percent'], def: 'Liters'},
-    {id: 'q', label: 'LOX remaining', type: 'number', unit: v => v.qu === 'Pounds' ? 'lb' : v.qu === 'Percent' ? '%' : 'L liquid'},
-    {id: 'cap', label: 'Full capacity', type: 'number', unit: 'L liquid', show: v => v.qu === 'Percent'},
-    {id: 'flow', label: 'Flow rate', type: 'number', unit: 'L/min'},
+    {id: 'q', label: 'LOX gauge reading', type: 'number', unit: 'L liquid'},
+    {id: 'flow', label: 'Flow rate (flow meter reading)', type: 'number', unit: 'L/min'},
+    ohioField,
   ],
   compute(v){
     const q = num(v.q), fl = num(v.flow);
     if (!has(q) || !has(fl)) return null;
-    const work = [];
-    let gas;
-    if (v.qu === 'Pounds'){ gas = q * 344; work.push(`${q} lb × 344 L/lb = ${r(gas, 0)} L gas`); }
-    else {
-      let L = q;
-      if (v.qu === 'Percent'){ const cap = num(v.cap); if (!has(cap)) return null; if (q > 100) return {out: [{k: 'Check percent', v: '0–100%'}], work: []}; L = cap * q / 100; work.push(`${q}% of ${cap} L = ${r(L, 2)} L liquid`); }
-      gas = L * 860; work.push(`${r(L, 2)} L liquid × 860 = ${r(gas, 0)} L gas`);
-    }
-    const m = gas / fl; work.push(`${r(gas, 0)} L ÷ ${fl} L/min = ${r(m)} min`);
-    return {out: [{k: 'Duration', v: mins(m), big: true}, {k: 'Gas available', v: r(gas, 0) + ' L'}], work,
-      disclaimer: 'Standard liquid oxygen conversion from published sources (below), not from the LFN Patient Care Guidelines. Check the aircraft’s LOX gauge and system manual.',
-      refs: [{label: 'OpenExamPrep FP-C: LOX 1:860, 344 L per lb', href: 'https://open-exam-prep.com/study-guides/fp-c/airway-anesthesia-analgesics/oxygen-systems'}, {label: 'ASPR TRACIE (HHS): 1 L liquid ≈ 860 L gas', href: 'https://asprtracie.hhs.gov/documents/aspr-tracie-ta-considerations-for-oxygen-therapy-in-disasters.pdf'}, {label: 'Respiratory Therapy Zone: duration = 344 × lb ÷ flow', href: 'https://www.respiratorytherapyzone.com/liquid-oxygen-calculator/'}, {label: 'Tampa General: BK 117 LOX, 1 L liquid = 860 L gas', href: 'https://extmedia.tgh.org/sites/default/files/oxygen-duration-nugget-.pdf'}],
-      notes: ['1 L of liquid oxygen ≈ 860 L of gas (sources range 860–862). 1 lb of liquid oxygen ≈ 344 L of gas.', 'Liquid systems slowly vent oxygen even when not in use, so real time can be shorter than calculated.', 'For percent gauges, enter the system’s full capacity in liters of liquid.']};
+    const gas = q * 860, work = [`${q} L liquid × 860 = ${r(gas, 0)} L gas`];
+    const o = ohio(fl, v.alt); if (o.how) work.push(o.how);
+    const m = gas / o.flow; work.push(`${r(gas, 0)} L ÷ ${r(o.flow, 2)} L/min = ${r(m)} min`);
+    const out = [{k: 'Duration', v: mins(m), big: true}, {k: 'Gas available', v: r(gas, 0) + ' L'}];
+    if (o.how) out.push({k: 'Actual flow at altitude', v: r(o.flow, 1) + ' L/min'});
+    return {out, work, refs: [REF_B], warn: o.est ? 'This flow is not a row in the Appendix B flow meter table, so the altitude correction is estimated.' : undefined,
+      notes: ['LFN formula (Appendix B): LOX liters × 860 = liters of gas; liters of gas ÷ flow = minutes. Appendix B uses no residual for LOX.', 'LOX capacity (Appendix B): PC-12 1–5 L (added to its gas supply), AW119kx, Bell 407 and Bell 429 1–10 L.', ohioNote, 'Liquid systems slowly vent oxygen even when not in use, so real time can be shorter than calculated (general LOX property, not from the policy).']};
   }
 },
 {
-  id: 'altfio2', title: 'Altitude FiO2', color: 'prot',
+  id: 'o2plan', title: 'O2 for transport', color: 'prot',
   fields: [
-    {id: 'fi', label: 'Current FiO2', type: 'number', unit: '%'},
-    {id: 'a1', label: 'Current altitude', type: 'number', unit: 'ft', def: '0'},
-    {id: 'a2', label: 'New altitude (cabin altitude if pressurized)', type: 'number', unit: 'ft', def: '8000'},
+    {id: 'veh', label: 'Vehicle', type: 'seg', options: ['Rotor', 'Fixed wing', 'Ambulance'], def: 'Rotor'},
+    {id: 'flow', label: 'O2 flow set on flow meters, all patients', type: 'number', unit: 'L/min'},
+    {id: 'alt', label: 'Ohio flow meter at', type: 'seg', options: OHIO_OPTS, def: 'Ground'},
+    {id: 'vflow', label: 'Ventilator O2 flow, all patients', type: 'number', unit: 'L/min'},
+    {id: 't', label: 'Transport time (fixed wing: include ground legs)', type: 'number', unit: 'min'},
+    {id: 'res', label: 'Reserve', type: 'seg', options: ['By vehicle', '15 min', '30 min', '60 min'], def: 'By vehicle'},
+    {id: 'sup', label: 'Onboard supply', type: 'seg', options: ['LOX', 'Gas', 'LOX + gas'], def: 'LOX'},
+    {id: 'q', label: 'LOX gauge reading', type: 'number', unit: 'L liquid', show: v => v.sup !== 'Gas'},
+    {id: 'tank', label: 'Gas tank', type: 'pick', options: TANK_NAMES.filter(n => n !== 'D cylinder' && n !== 'E cylinder'), def: 'M tank', show: v => v.sup !== 'LOX'},
+    {id: 'cf', label: 'Conversion factor', type: 'number', unit: 'L/psi', show: v => v.sup !== 'LOX' && v.tank === 'Other'},
+    {id: 'p', label: 'Gauge pressure', type: 'number', unit: v => TANKS[v.tank] && TANKS[v.tank].two ? 'psi, tank 1' : 'psi', show: v => v.sup !== 'LOX'},
+    {id: 'p2', label: 'Gauge pressure', type: 'number', unit: 'psi, tank 2', show: v => v.sup !== 'LOX' && !!(TANKS[v.tank] && TANKS[v.tank].two)},
   ],
   compute(v){
-    let fi = num(v.fi); const a1 = num(v.a1), a2 = num(v.a2);
-    if (!has(fi) || !isFinite(a1) || !isFinite(a2)) return null;
-    if (fi <= 1) fi = fi * 100;
-    if (fi < 21 || fi > 100) return {out: [{k: 'Check FiO2', v: '21–100%'}], work: []};
-    if (a1 < -1000 || a2 < -1000 || a1 > 30000 || a2 > 30000) return {out: [{k: 'Check altitude', v: '−1,000 to 30,000 ft'}], work: []};
-    const pb = ft => 760 * Math.pow(1 - 6.8756e-6 * ft, 5.2559);
-    const p1 = pb(a1), p2 = pb(a2), nf = fi * p1 / p2, pio2 = p1 * fi / 100;
-    const work = [`Barometric pressure at ${a1} ft ≈ ${r(p1, 0)} mmHg; at ${a2} ft ≈ ${r(p2, 0)} mmHg (standard atmosphere)`, `Inspired O2 now: ${r(p1, 0)} × ${r(fi / 100, 2)} = ${r(pio2, 0)} mmHg`, `New FiO2 = ${r(fi, 1)}% × ${r(p1, 0)} ÷ ${r(p2, 0)} = ${r(nf, 1)}%`];
-    const out = nf > 100
-      ? [{k: 'New FiO2 needed', v: '> 100%', big: true}, {k: 'Calculated', v: r(nf, 1) + '%'}]
-      : [{k: 'New FiO2', v: r(nf, 0) + '%', big: true}];
-    out.push({k: 'Pressure change', v: `${r(p1, 0)} → ${r(p2, 0)} mmHg`});
-    const notes = ['Keeps the inspired oxygen pressure the same: FiO2 × barometric pressure before = new FiO2 × barometric pressure after.', 'Pressures are from the standard atmosphere (sea level 760 mmHg, 8,000 ft ≈ 565 mmHg). Using inHg (30 and 22) gives slightly different numbers, e.g. 40% → 55% instead of 54%.', 'Estimate only: it ignores water vapor and the patient’s response. Titrate to SpO2.'];
-    if (nf > 100) notes.unshift('Even 100% O2 can’t match the current inspired oxygen at the new altitude. Consider a lower altitude or cabin altitude.');
-    return {out, work, notes,
-      disclaimer: 'Standard flight physiology gas-law estimate (Dalton’s law), not from the LFN Patient Care Guidelines. For decompression sickness, 4.02 asks for sea level cabin altitude on FW transports.',
-      refs: [{label: 'OpenExamPrep CCP-C: transport stressors and gas laws (760 / 564 mmHg)', href: 'https://open-exam-prep.com/study-guides/ccp-c/transport-and-safety-part2/transport-stressors'}, {label: 'StatPearls: alveolar gas equation (pressure × FiO2)', href: 'https://statpearls.com/sp/al/13/17417/'}, {label: '4.02 Decompression Sickness: cabin altitude, p.77', href: '#4.02@78'}]};
+    const fl0 = num(v.flow), vf = num(v.vflow), t = num(v.t);
+    const fm = isFinite(fl0) && fl0 > 0 ? fl0 : 0, vent = isFinite(vf) && vf > 0 ? vf : 0;
+    if (!(fm + vent > 0) || !has(t)) return null;
+    const work = [];
+    const om = fm ? ohio(fm, v.alt) : {flow: 0, how: ''}; if (om.how) work.push(om.how);
+    const o = {flow: om.flow + vent, est: om.est};
+    if (vent) work.push(`Total flow: ${r(om.flow, 2)} + ${vent} ventilator = ${r(o.flow, 2)} L/min`);
+    const res = v.res === 'By vehicle' ? (v.veh === 'Rotor' ? 15 : 30) : parseInt(v.res, 10);
+    const tt = t + res, need = tt * o.flow;
+    work.push(`Reserve: ${res} min${v.res === 'By vehicle' ? ` (${v.veh === 'Rotor' ? 'rotor' : v.veh === 'Ambulance' ? 'ambulance' : 'fixed wing'}, Policy 201.03 N.2)` : ''}`);
+    work.push(`(${t} + ${res}) min × ${r(o.flow, 2)} L/min = ${r(need, 0)} L gas needed`);
+    let have = 0, warn = [];
+    if (v.sup !== 'Gas'){
+      const q = num(v.q); if (!isFinite(q) || q < 0) return null;
+      have += q * 860; work.push(`LOX: ${q} L × 860 = ${r(q * 860, 0)} L gas`);
+    }
+    if (v.sup !== 'LOX'){
+      const g = tankGas(v, work); if (!g) return null;
+      have += g.gas; warn = g.warn;
+    }
+    if (v.sup === 'LOX + gas') work.push(`Total available: ${r(have, 0)} L gas`);
+    const ok = have >= need, spare = (have - need) / o.flow;
+    const out = [{k: 'Enough oxygen?', v: ok ? 'Yes' : 'No', big: true}, {k: 'Needed (trip + reserve)', v: `${r(need, 0)} L gas (${r(need / 860, 1)} L LOX)`}, {k: 'Available', v: `${r(have, 0)} L gas`}];
+    out.push(ok ? {k: 'Extra beyond reserve', v: mins(spare)} : {k: 'Short by', v: `${r(need - have, 0)} L gas (${r((need - have) / 860, 1)} L LOX)`});
+    out.push({k: 'Supply lasts', v: mins(have / o.flow)});
+    if (!ok) warn.push('Not enough oxygen for this transport plus reserve. Policy 201.03 N.4: plan resupply before departing with the patient.');
+    if (o.est) warn.push('This flow is not a row in the Appendix B flow meter table, so the altitude correction is estimated.');
+    return {out, work, warn: warn.join(' ') || undefined, refs: [REF_P, REF_B],
+      notes: ['Method (Appendix B): add every patient’s O2 flow, including ventilators; add the reserve to the flight time; multiply by total flow; divide by 860 for liters of LOX.', 'Reserve (Policy 201.03 N.2–3): rotor 15 min; fixed wing and ambulance 30 min; consider 60 min for ground transports over 3 hours in bad weather. The Appendix B worked example adds 30 min.', 'Only aircraft or ambulance oxygen counts. Do not include the portable D cylinder (N.2). Plan for the worst case, e.g. a nasal cannula patient who needs intubation (N.6).', 'Minimum onboard before any patient transport (L–M): rotor with LOX 2.0 L; rotor with gas 1,500 psi; fixed wing with gas 1,800 psi; fixed wing with LOX 3.0 L; ambulance M or H tank 1,000 psi. Each also carries a portable D cylinder of at least 1,000 psi.', 'HFNC (O): D cylinders must be full at the start; they give about 9–19 min for transfers depending on flow.', ohioNote + ' Ventilator flow is added without correction.']};
   }
 },
+{
+  id: 'altfio2', title: 'Altitude O2 conversion', color: 'prot',
+  fields: [
+    {id: 'alt', label: 'Cabin altitude', type: 'select', options: ['1,000 ft', '2,000 ft', '3,000 ft', '4,000 ft', '5,000 ft', '6,000 ft', '7,000 ft', '8,000 ft', '9,000 ft', '10,000 ft'], def: '8,000 ft'},
+    {id: 'want', label: 'Desired O2 % (sea level equivalent)', type: 'select', options: ['21', '25', '30', '35', '40', '45', '50', '55', '60', '65', '70', '75', '80', '85', '90', '95', '100'], def: '40'},
+  ],
+  compute(v){
+    // Appendix A, rows = cabin altitude (1,000..10,000 ft), columns = desired SLE 21,25,30..100. null = dark shaded (cannot be obtained).
+    const COLS = [21, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100];
+    const T = {
+      1000: [22, 26, 31, 38, 41, 47, 52, 57, 62, 67, 73, 78, 83, 88, 93, 98, 100],
+      2000: [23, 27, 32, 38, 43, 48, 54, 59, 64, 70, 75, 81, 86, 91, 97, 100, null],
+      3000: [23, 28, 33, 39, 45, 50, 56, 61, 67, 73, 78, 84, 89, 95, 100, null, null],
+      4000: [24, 29, 35, 41, 46, 52, 57, 64, 70, 75, 81, 87, 93, 97, 100, null, null],
+      5000: [25, 30, 36, 42, 48, 54, 60, 66, 72, 78, 84, 90, 96, 100, null, null, null],
+      6000: [26, 31, 37, 44, 50, 56, 62, 69, 75, 81, 87, 94, 100, null, null, null, null],
+      7000: [27, 32, 39, 45, 52, 58, 65, 71, 78, 84, 91, 97, 100, null, null, null, null],
+      8000: [28, 34, 40, 46, 54, 61, 67, 74, 81, 87, 93, 100, null, null, null, null, null],
+      9000: [29, 35, 42, 49, 56, 63, 70, 77, 84, 91, 98, 100, null, null, null, null, null],
+      10000: [30, 36, 44, 51, 58, 65, 73, 80, 87, 94, 100, null, null, null, null, null, null],
+    };
+    const alt = parseInt(String(v.alt).replace(/\D/g, ''), 10), want = parseInt(v.want, 10);
+    const row = T[alt], ci = COLS.indexOf(want); if (!row || ci < 0) return null;
+    const d = row[ci];
+    const maxSle = COLS[row.indexOf(100)]; // policy: 100% O2 at 8,000 ft only provides 75% SLE
+    const work = [`Appendix A: ${v.alt} row × ${want}% column`];
+    if (d === null){
+      work.push('Dark shaded box: cannot be obtained at this altitude.');
+      return {out: [{k: 'Deliver', v: 'Not obtainable', big: true}, {k: 'Best available', v: `100% O2 ≈ ${maxSle}% SLE at most`}], work, refs: [REF_A],
+        warn: `${want}% sea level equivalent cannot be obtained at ${v.alt} cabin altitude (dark shaded in Appendix A). Consider a lower cabin altitude; Policy 201.03 E: tell the pilot of any altitude restriction before departure.`,
+        notes: notesA()};
+    }
+    const light = d === 100 && !(alt === 1000 && want === 100);
+    work.push(`Deliver ${d}% O2`);
+    const out = [{k: 'Deliver', v: d + '% O2', big: true}];
+    const dev = devices(d); out.push(...dev.map(x => ({k: x[0], v: x[1]})));
+    return {out, work, refs: [REF_A], notes: notesA(alt === 1000 && want === 35),
+      warn: light ? `Light shaded box: this takes 100% O2, the maximum. Anything higher than ${want}% sea level equivalent can’t be obtained at ${v.alt} (Appendix A).` : undefined};
+  }
+},
+];
+// Appendix A p.2: oxygen delivery methods (LPM -> O2 % range).
+const METHODS = [
+  ['Nasal cannula', [[2, 23, 28], [3, 28, 30], [4, 32, 36], [5, 40, 40], [6, 44, 44]]],
+  ['Simple mask', [[5, 40, 40], [6, 45, 50], [8, 55, 60]]],
+  ['Partial rebreather', [[6, 35, 35], [8, 40, 45], [10, 60, 60], [12, 60, 60], [15, 60, 60]]],
+  ['Non-rebreather', [[6, 55, 60], [8, 60, 80], [10, 80, 90], [12, 90, 90], [15, 90, 90]]],
+];
+const rng = x => x[1] === x[2] ? `${x[1]}%` : `${x[1]}–${x[2]}%`;
+function devices(pct){
+  return METHODS.map(([name, rows]) => {
+    const i = rows.findIndex(x => x[2] >= pct);
+    if (i < 0) return [name, `Not enough (max ${rows[rows.length - 1][2]}%)`];
+    const x = rows[i];
+    if (x[1] > pct && i > 0) return [name, `${rows[i - 1][0]}–${x[0]} L/min (${rng(rows[i - 1])} to ${rng(x)})`];
+    return [name, `${x[0]} L/min (${rng(x)})`];
+  });
+}
+function notesA(typo){
+  const n = ['LFN method (Appendix A): find the desired sea level equivalent (SLE) % and the cabin altitude; the table gives the % to deliver. Then pick a device and flow from the delivery methods chart (shown above). Policy example: 35% at 7,000 ft → deliver 45%.', 'If the cabin altitude falls between rows, using the higher row is the conservative choice (suggestion, not stated in the policy).', 'Nasal cannula % depends on minute ventilation; simple mask needs more than 5 L/min to clear CO2 (Appendix A).', 'Titrate to SpO2. Policy 201.03 J stresses liberal O2 and in-flight pulse oximetry.'];
+  if (typo) n.unshift('The 1,000 ft / 35% box reads 38% in the policy, the same as 2,000 ft. Neighboring values suggest about 36%. Shown as printed.');
+  return n;
+}
+
+const CALCS = [
+...O2CALCS,
 {
   id: 'd10', title: 'D10 hypoglycemia', color: 'peds',
   fields: [
