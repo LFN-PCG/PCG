@@ -160,7 +160,7 @@ function medLabel(e){
   if (e.act === 'start') return `${e.n} drip started${d ? ' ' + d : ''}${e.route && e.route !== 'IV' ? ' ' + e.route : ''}`;
   if (e.act === 'rate') return `${e.n} rate → ${d}`;
   if (e.act === 'stop') return `${e.n} drip stopped`;
-  return `${e.n}${d ? ' ' + d : ''}${e.route ? ' ' + e.route : ''}`;
+  return `${e.n}${d ? ' ' + d : ''}${e.route ? ' ' + e.route : ''}${e.pk ? ` (${e.pk}, ${e.ind})` : ''}`;
 }
 function vitalsLabel(e){
   const v = e.v, p = [];
@@ -255,6 +255,17 @@ const css = `
 .tk-fold.sub .tk-fold-h{min-height:48px;padding:8px 2px;font-size:14px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .tk-fold.sub .tk-fold-b{padding:2px 0 10px}
 #tkUndo:disabled{opacity:.3}
+.tk-dose{background:var(--surface);border-radius:14px;padding:12px;margin:12px 0 4px}
+.tk-dose .tk-chip{background:var(--chip)}
+.tk-dose .tk-chip.on{background:var(--c-trk)}
+.tk-calc{margin-top:10px;border-top:1px dashed var(--line);padding-top:10px}
+.tk-calc .big{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
+.tk-calc .big small{font-size:14px;color:var(--muted);font-weight:600}
+.tk-calc .how{font-size:14px;color:var(--muted);margin-top:2px}
+.tk-calc .work{font-size:13.5px;color:var(--muted);margin-top:6px;font-variant-numeric:tabular-nums;line-height:1.5}
+.tk-src{display:inline-block;margin-top:8px;font-size:14px;font-weight:700;color:var(--accent);padding:6px 0;text-decoration:none}
+.tk-start{background:var(--accent-soft);border:1px solid var(--accent);border-radius:14px;padding:12px 14px;margin:4px 0 12px}
+.tk-start b{display:block;font-size:17px;margin-bottom:4px}
 .tk-ev.hot{outline:2px solid var(--c-trk);outline-offset:-2px}
 .tk-chips{display:flex;flex-wrap:wrap;gap:8px}
 .tk-chip{background:var(--surface);border-radius:999px;padding:8px 14px;min-height:44px;font-weight:700;font-size:15px;text-align:left}
@@ -362,6 +373,102 @@ function medDefaults(n){
   const d = DEF[n] || [], p = prefs.med[n] || {};
   return {unit: p.unit || d[0] || 'mg', route: p.route || d[1] || 'IV', rate: p.rate || d[2] || 'mcg/min'};
 }
+// ---------- PCG weight-based dose calculation (data in doses.js) ----------
+const DOSES = () => (window.LFN_DOSES && window.LFN_DOSES.drugs) || {};
+const CALC = () => window.LFN_CALCS || null;
+// Pediatric = under 18 years (CAMTS definition, PCG p.19). Neonatal rows show for age 0 months.
+function patientPop(){
+  const h = P.hx;
+  if (h.age === '90+') return 'A';
+  if (h.age === '' || h.age == null) return null;
+  if (h.ageU === 'mo') return +h.age < 1 ? 'N' : 'P';
+  return +h.age >= 18 ? 'A' : 'P';
+}
+const POPL = {A: 'Adult', P: 'Pediatric', N: 'Neonatal'};
+const rnd = x => { const a = Math.abs(x); const d = a >= 100 ? 0 : a >= 10 ? 1 : a >= 1 ? 2 : 3; const f = 10 ** d; return Math.round(x * f) / f; };
+const pcgLink = (d, label) => `<a class="tk-src" href="#${encodeURIComponent(d.sec)}@${d.p}">${esc(label || `Open PCG ${d.sec}, p.${d.p - 1}`)} ›</a>`;
+function doseRows(n){
+  const d = DOSES()[n]; if (!d) return null;
+  const pop = patientPop();
+  const rows = d.rows.map((r, i) => ({...r, i})).filter(r => !pop || r.pop === pop || (pop === 'N' && r.pop === 'P'));
+  return {d, rows, pop};
+}
+// Returns {dose, unit, work[], range, capped, vol}
+function computeDose(r, w){
+  const work = [];
+  const u = r.u === 'mg PE' ? 'mg' : r.u;
+  if (r.bands){
+    const b = r.bands.find(x => x[0] == null || w < x[0]);
+    work.push(`Weight ${fmtN(w)} kg falls in the ${r.note.split('; ')[r.bands.indexOf(b)]} band`);
+    return {dose: b[1], unit: u, work};
+  }
+  const capOf = x => (r.max != null && x > r.max) ? r.max : x;
+  const lo = r.lo * w, hi = r.hi * w;
+  if (r.lo === r.hi) work.push(`${fmtN(r.lo)} ${r.u}/kg × ${fmtN(w)} kg = ${rnd(lo)} ${r.u}`);
+  else work.push(`${fmtN(r.lo)}–${fmtN(r.hi)} ${r.u}/kg × ${fmtN(w)} kg = ${rnd(lo)}–${rnd(hi)} ${r.u}`);
+  let capped = false;
+  if (r.max != null){
+    if (hi > r.max){ capped = true; work.push(`Max single dose ${fmtN(r.max)} ${r.u}: ${lo > r.max ? 'use ' + fmtN(r.max) + ' ' + r.u : 'upper end capped at ' + fmtN(r.max) + ' ' + r.u}`); }
+    else work.push(`Under the max single dose of ${fmtN(r.max)} ${r.u}`);
+  }
+  const dose = rnd(capOf(lo)), top = rnd(capOf(hi));
+  const out = {dose, unit: u, work, capped, range: r.lo !== r.hi ? [dose, top] : null};
+  if (r.c){ out.vol = rnd(dose / r.c); work.push(`${dose} ${r.u} ÷ ${fmtN(r.c)} ${r.u}/mL = ${out.vol} mL`); }
+  return out;
+}
+function routeFrom(how){
+  const m = /^(?:deep\s+|slow\s+|rapid\s+)?(IV|IO|IM|IN|PO|SQ|SIVP|IVP|neb)/i.exec(how || '');
+  if (!m) return null;
+  const t = m[1].toUpperCase();
+  return t === 'SIVP' || t === 'IVP' ? 'IV' : t === 'NEB' ? 'Neb' : t;
+}
+function doseBlock(){
+  if (ms.act !== 'push') return dripBlock();
+  const info = doseRows(ms.n);
+  if (!info) return `<div class="tk-dose"><div class="dim">No weight-based dose for ${esc(ms.n)} in the PCG formulary. Enter the dose yourself.</div></div>`;
+  const {d, rows, pop} = info, w = num(P.hx.wt);
+  let h = `<div class="tk-dose"><div class="tk-lbl" style="margin-top:0">PCG weight-based dose${pop ? ' · ' + POPL[pop] : ''}</div>`;
+  if (!rows.length){
+    return h + `<div class="dim">The PCG has no ${POPL[pop].toLowerCase()} weight-based dose for ${esc(ms.n)} (it may have a fixed dose instead). Enter the dose yourself.</div>${pcgLink(d)}</div>`;
+  }
+  if (!w) h += `<div class="dim" style="margin-bottom:8px">Enter weight in History to calculate. <button class="tk-sbtn" data-act="gohx">Go to History</button></div>`;
+  if (!pop) h += `<div class="dim" style="margin-bottom:8px">Age not entered, so adult and pediatric doses are both listed.</div>`;
+  h += '<div class="tk-chips">' + rows.map(r => `<button class="tk-chip${ms.ri === r.i ? ' on' : ''}" data-act="msind" data-v="${r.i}">${esc(r.ind)}<small>${pop ? '' : POPL[r.pop] + ' · '}${r.bands ? 'weight bands' : fmtN(r.lo) + (r.hi !== r.lo ? '–' + fmtN(r.hi) : '') + ' ' + esc(r.u) + '/kg'}${r.max != null ? ' · max ' + fmtN(r.max) + ' ' + esc(r.u) : ''}</small></button>`).join('') + '</div>';
+  const r = ms.ri != null ? d.rows[ms.ri] : null;
+  if (r && w){
+    const c = computeDose(r, w);
+    h += `<div class="tk-calc"><div class="big">${c.range ? `${c.range[0]}–${c.range[1]}` : c.dose} ${esc(c.unit)}${c.vol != null ? ` <small>(${c.vol} mL)</small>` : ''}${c.capped ? ' <small>max dose applied</small>' : ''}</div>
+      <div class="how">${esc(r.how)}${r.note ? ' · ' + esc(r.note) : ''}</div>
+      <div class="work">${c.work.map(x => `<div>${esc(x)}</div>`).join('')}</div>${c.range ? `<div class="work">Dose field filled with the low end of the range.</div>` : ''}</div>`;
+  }
+  if (r && pop === 'P') h += `<div class="tk-note" style="margin:6px 2px 0">Pediatric doses should not exceed the maximum adult single or total dose (PCG p.18).</div>`;
+  h += `<div class="warn" style="margin:10px 0 0"><b>Confirm the dose with the PCG before giving.</b> This is a calculation aid. Check the indication, weight and max dose against the source page.</div>${pcgLink(d)}</div>`;
+  return h;
+}
+// Drips in /kg units: show the total and the pump rate for the LFN standard mix (concentrations from the calculators).
+function dripBlock(){
+  if (ms.act !== 'start' && ms.act !== 'rate') return '';
+  const C = CALC(); const U = /\/kg\//.test(ms.unit), w = num(P.hx.wt), rate = num(ms.dose);
+  const mix = C && C.DRUGS.filter(x => x.n === ms.n || x.n.startsWith(ms.n + ' ('));
+  const parts = [];
+  if (U && !w) parts.push(`<div class="dim">Enter weight in History to convert ${esc(ms.unit)} to a total dose and pump rate. <button class="tk-sbtn" data-act="gohx">Go to History</button></div>`);
+  if (rate != null && (!U || w)){
+    const [amt, , per] = ms.unit.split('/').length === 3 ? ms.unit.split('/') : [ms.unit.split('/')[0], null, ms.unit.split('/')[1]];
+    const tot = U ? rate * w : rate;
+    const work = U ? [`${fmtN(rate)} ${ms.unit} × ${fmtN(w)} kg = ${rnd(tot)} ${amt}/${per}`] : [];
+    if (mix && mix.length === 1 && amt !== 'mL'){
+      const m = mix[0], perHr = per === 'min' ? tot * 60 : tot;
+      const inConc = C.toConc(perHr, amt === 'grams' ? 'g' : amt, m.u);
+      if (isFinite(inConc)){
+        const mlhr = inConc / m.c;
+        work.push(`${per === 'min' ? `${rnd(tot)} ${amt}/min × 60 = ${rnd(perHr)} ${amt}/hr; ` : ''}÷ ${m.c} ${m.u}/mL (${m.mix}) = ${rnd(mlhr)} mL/hr`);
+        parts.push(`<div class="tk-calc"><div class="big">${rnd(mlhr)} mL/hr <small>${U ? rnd(tot) + ' ' + amt + '/' + per : ''}</small></div><div class="how">LFN standard mix ${esc(m.mix)}</div><div class="work">${work.map(x => `<div>${esc(x)}</div>`).join('')}</div></div>`);
+      }
+    } else if (work.length) parts.push(`<div class="tk-calc"><div class="big">${rnd(tot)} ${esc(amt)}/${esc(per)}</div><div class="work">${work.map(x => `<div>${esc(x)}</div>`).join('')}</div></div>`);
+  }
+  if (!parts.length) return '';
+  return `<div class="tk-dose">${parts.join('')}<div class="warn" style="margin:10px 0 0"><b>Confirm with the PCG and the actual bag concentration before running.</b></div></div>`;
+}
 function rMeds(){
   let h = '';
   const dr = drips();
@@ -436,7 +543,8 @@ function rHx(){
     }).join('') + '</div>';
   };
   const over = h.age === '90+';
-  let s = `<div class="warn" style="margin-top:4px">No names, dates of birth, record numbers, addresses or other identifiers. There are no free-text fields on purpose.</div>
+  const fresh = !P.entries.length && !h.wt && (h.age === '' || h.age == null);
+  let s = (fresh ? `<div class="tk-start"><b>New patient: enter age and weight first.</b>Weight drives the dose calculations in Log. Age picks adult or pediatric doses (pediatric is under 18). <button class="tk-sbtn" data-act="tolog" style="margin-top:8px">Skip to Log</button></div>` : '') + `<div class="warn" style="margin-top:4px">No names, dates of birth, record numbers, addresses or other identifiers. There are no free-text fields on purpose.</div>
     <div class="inputs">
       <div class="field"><label for="tkAge">Age</label><input id="tkAge" data-h="age" type="number" inputmode="numeric" min="0" max="89" placeholder="—" value="${over ? '' : esc(h.age ?? '')}"${over ? ' disabled' : ''}></div>
       <div class="field"><label for="tkWt">Weight (kg)</label><input id="tkWt" data-h="wt" type="number" inputmode="decimal" min="0" max="400" step="any" placeholder="—" value="${esc(h.wt ?? '')}"></div>
@@ -493,7 +601,7 @@ function medSheet(n, act, fromId){
   const src = fromId && P.entries.find(e => e.id === fromId);
   const running = drips().find(e => e.n === n);
   act = act || (running ? 'rate' : 'push');
-  ms = {n, act, unit: src ? src.unit : (act === 'push' ? d.unit : (running ? running.unit : d.rate)), route: src ? src.route : d.route, dose: src && src.dose != null ? src.dose : ''};
+  ms = {n, act, ri: null, unit: src ? src.unit : (act === 'push' ? d.unit : (running ? running.unit : d.rate)), route: src ? src.route : d.route, dose: src && src.dose != null ? src.dose : ''};
   drawMedSheet();
 }
 function drawMedSheet(){
@@ -503,6 +611,7 @@ function drawMedSheet(){
   openSheet(`<h2>${esc(ms.n)}</h2>
     <div class="tk-chips">${Object.entries(ACTS).map(([k, l]) => `<button class="tk-chip${ms.act === k ? ' on' : ''}" data-act="msact" data-v="${k}">${l}</button>`).join('')}</div>
     ${ms.act === 'stop' ? '' : `
+    <div id="tkDoseCalc">${doseBlock()}</div>
     <div class="tk-lbl">${isRate ? 'Rate' : 'Dose'}</div>
     <div class="field"><input id="tkDose" type="number" inputmode="decimal" step="any" placeholder="—" value="${esc(ms.dose)}"></div>
     <div class="tk-lbl">Unit</div><div class="tk-chips">${units.map(u => `<button class="tk-chip${ms.unit === u ? ' on' : ''}" data-act="msunit" data-v="${u}">${u}</button>`).join('')}</div>
@@ -556,7 +665,15 @@ root.addEventListener('click', e => {
     case 'medsheet': medSheet(n, b.dataset.a, id); break;
     case 'stopdrip': addEntry({k: 'med', n, act: 'stop'}); break;
     case 'msact': ms.dose = (q('#tkDose') || {}).value ?? ms.dose; ms.act = v; drawMedSheet(); break;
-    case 'msunit': ms.dose = (q('#tkDose') || {}).value ?? ms.dose; ms.unit = v; b.parentNode.querySelectorAll('.tk-chip').forEach(c => c.classList.toggle('on', c === b)); break;
+    case 'msunit': ms.dose = (q('#tkDose') || {}).value ?? ms.dose; ms.unit = v; b.parentNode.querySelectorAll('.tk-chip').forEach(c => c.classList.toggle('on', c === b)); { const el = q('#tkDoseCalc'); if (el) el.innerHTML = doseBlock(); } break;
+    case 'msind': {
+      ms.ri = +v; const d = DOSES()[ms.n], r = d && d.rows[ms.ri], w = num(P.hx.wt);
+      if (r && w){ const c = computeDose(r, w); ms.dose = c.dose; ms.unit = c.unit; ms.calc = {pk: r.bands ? 'weight band' : `${fmtN(r.lo)}${r.hi !== r.lo ? '–' + fmtN(r.hi) : ''} ${r.u}/kg`, dose: c.dose, ind: r.ind}; const rt = routeFrom(r.how); if (rt) ms.route = rt; }
+      else ms.dose = (q('#tkDose') || {}).value ?? ms.dose;
+      drawMedSheet(); { const c = q('.tk-calc'); if (c) c.scrollIntoView({block: 'center'}); } break;
+    }
+    case 'tolog': tab = 'log'; render(); break;
+    case 'gohx': closeSheet(); tab = 'hx'; render(); q('#tkBody').scrollTop = 0; break;
     case 'msroute': ms.route = v; b.parentNode.querySelectorAll('.tk-chip').forEach(c => c.classList.toggle('on', c === b)); break;
     case 'logmed': {
       const ent = {k: 'med', n: ms.n, act: ms.act, t: pickTime('tkMt')};
@@ -570,6 +687,7 @@ root.addEventListener('click', e => {
         prefs.med[ms.n] = p; savePrefs();
       }
       if (ms.act === 'push') delete ent.act;
+      if (ms.act === 'push' && ms.calc && ent.dose === ms.calc.dose && ent.unit === ms.unit){ ent.ind = ms.calc.ind; ent.pk = ms.calc.pk; }
       closeSheet(); addEntry(ent); break;
     }
     case 'pick': b.parentNode.querySelectorAll('.tk-chip').forEach(c => c.classList.toggle('on', c === b && !c.classList.contains('on'))); break;
@@ -634,7 +752,7 @@ root.addEventListener('click', e => {
     case 'restore': if (lastRemoved){ P.entries.push(lastRemoved); P.entries.sort((x, y) => x.t - y.t); lastRemoved = null; save(); render(); snack('Restored.'); } break;
     case 'close': closeSheet(); break;
     case 'askclear': clearSheet(); break;
-    case 'doclear': clearPatient(); vDraft = {}; mDraft = {vent: {}, neuro: {}, fhr: {}}; closeSheet(); tab = 'log'; render(); snack('Patient cleared.'); break;
+    case 'doclear': clearPatient(); vDraft = {}; mDraft = {vent: {}, neuro: {}, fhr: {}}; closeSheet(); tab = 'hx'; P.seen = 1; ls.set(KEY, P); render(); snack('Patient cleared. Enter age and weight for the next patient.'); break;
     case 'ttl': prefs.ttl = +v; savePrefs(); render(); break;
     case 'copy': copyText(exportText()); break;
     case 'share': navigator.share({title: 'Patient timeline', text: exportText()}).catch(() => {}); break;
@@ -642,6 +760,7 @@ root.addEventListener('click', e => {
 });
 root.addEventListener('input', e => {
   const t = e.target;
+  if (t.id === 'tkDose' && ms && (ms.act === 'start' || ms.act === 'rate')){ ms.dose = t.value; const el = q('#tkDoseCalc'); if (el) el.innerHTML = doseBlock(); return; }
   if (t.id === 'tkMq'){ medQ = t.value; q('#tkMlist').innerHTML = medList(); return; }
   if (t.dataset.mg){ mDraft[t.dataset.mg][t.dataset.mf] = t.value; return; }
   if (t.id && t.id.startsWith('tkMt-')){ mDraft[t.id.slice(5)]._t = t.value; return; }
@@ -673,6 +792,8 @@ function copyText(s){
 function show(push){
   const cleared = expire();
   open = true;
+  // New patient: open on History so age and weight go in first.
+  if (!P.seen){ P.seen = 1; ls.set(KEY, P); tab = 'hx'; }
   if (push) history.pushState({tk: 1}, '', '#tracker');
   root.classList.remove('hidden'); document.body.style.overflow = 'hidden';
   render();
