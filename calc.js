@@ -197,6 +197,52 @@ const O2CALCS = [
   }
 },
 {
+  id: 'vento2', title: 'Vent O2 flow (LTV)', color: 'prot',
+  fields: [
+    {id: 'bias', label: 'Bias flow', type: 'seg', options: ['Adult 10 LPM', 'Peds 5 LPM'], def: 'Adult 10 LPM'},
+    {id: 'vm', label: 'Minute ventilation', type: 'seg', options: ['Vt × RR', 'Enter VE'], def: 'Vt × RR'},
+    {id: 'vt', label: 'Tidal volume', type: 'number', unit: 'mL', show: v => v.vm !== 'Enter VE'},
+    {id: 'rr', label: 'Respiratory rate', type: 'number', unit: '/min', show: v => v.vm !== 'Enter VE'},
+    {id: 've', label: 'Minute ventilation (VE)', type: 'number', unit: 'L/min', show: v => v.vm === 'Enter VE'},
+    {id: 'fi', label: 'Desired FiO2', type: 'number', unit: '% or 0–1'},
+  ],
+  compute(v){
+    // 8.23 LTV low-pressure O2 charts, PDF p.230 (printed 229). Each VE line runs straight from FiO2 .21 (0 LPM)
+    // to the value below at FiO2 1.0. Values read from the chart image (±0.2 LPM).
+    const VE = [1, 2, 3, 4, 6, 8, 10, 12, 14, 16, 18, 20];
+    const END = {
+      'Adult 10 LPM': [7.7, 8.7, 9.6, 10.6, 12.6, 14.6, 16.6, 18.7, 20.7, 22.6, 24.7, 26.6],
+      'Peds 5 LPM': [4.3, 5.4, 6.3, 7.3, 9.4, 11.4, 13.4, 15.4, 17.4, 19.3, 21.5, 23.3],
+    };
+    const E = END[v.bias]; if (!E) return null;
+    const work = [];
+    let ve;
+    if (v.vm === 'Enter VE') ve = num(v.ve);
+    else { const vt = num(v.vt), rr = num(v.rr); if (!has(vt) || !has(rr)) return null; ve = vt * rr / 1000; work.push(`VE = ${vt} mL × ${rr} = ${r(ve, 2)} L/min`); }
+    let fi = num(v.fi);
+    if (!has(ve) || !has(fi)) return null;
+    if (fi > 1) fi = fi / 100;
+    if (fi < 0.21 || fi > 1) return {out: [{k: 'Check FiO2', v: '21–100%'}], work};
+    if (ve < 1 || ve > 20) return {out: [{k: 'VE outside chart', v: '1–20 L/min'}], work, refs: [{label: '8.23 Mechanical Ventilation: LTV low-pressure O2 charts, p.229', href: '#8.23@230'}]};
+    // Chart x-axis: .21 at the left edge, then .30, .40 … 1.0 at equal spacing (8 squares).
+    const xf = fi >= 0.3 ? (fi - 0.2) / 0.8 : (fi - 0.21) / 0.09 * 0.125;
+    let i = VE.indexOf(ve), e, est = false, hi = null;
+    if (i >= 0) e = E[i];
+    else { let j = 0; while (VE[j + 1] < ve) j++; e = E[j] + (E[j + 1] - E[j]) * (ve - VE[j]) / (VE[j + 1] - VE[j]); est = true; hi = j + 1; }
+    const flow = e * xf;
+    work.push(`Chart: ${v.bias.replace(/^\w+ /, 'bias ')}, FiO2 ${r(fi, 2)}`);
+    if (est) work.push(`VE ${r(ve, 2)} is between the VE ${VE[hi - 1]} and VE ${VE[hi]} lines: ${r(e, 2)} L/min at FiO2 1.0 (interpolated)`);
+    else work.push(`VE ${ve} line reaches ${e} L/min at FiO2 1.0`);
+    work.push(`${est ? r(e, 2) : e} × ${r(xf, 3)} (FiO2 ${r(fi, 2)} position on the chart) = ${r(flow, 2)} L/min`);
+    const out = [{k: 'Set O2 flow', v: r(flow, 1) + ' L/min', big: true}];
+    if (est) out.push({k: `Next higher line (VE ${VE[hi]})`, v: r(E[hi] * xf, 1) + ' L/min'});
+    out.push({k: 'Minute ventilation', v: r(ve, 1) + ' L/min'});
+    return {out, work, refs: [{label: '8.23 Mechanical Ventilation: LTV low-pressure O2 charts, p.229', href: '#8.23@230'}],
+      warn: est ? `VE ${r(ve, 1)} L/min falls between chart lines, so this flow is interpolated. Setting the next higher line’s flow is the safer choice.` : undefined,
+      notes: ['From the 8.23 LTV charts (p.229): set bias flow to 10 LPM for adults or 5 LPM for peds, then find where minute ventilation and FiO2 meet. The chart has lines for VE 1, 2, 3, 4, 6, 8, 10, 12, 14, 16, 18 and 20 L/min.', 'Chart values were read from the printed chart image, so allow about ±0.2 L/min. Check against the chart on p.229 and titrate to SpO2.', 'Use pediatric tubing for patients under 20 kg (8.23).', 'Enter this flow as "Ventilator O2 flow" in the O2 for transport calculator.']};
+  }
+},
+{
   id: 'altfio2', title: 'Altitude O2 conversion', color: 'prot',
   fields: [
     {id: 'alt', label: 'Cabin altitude', type: 'select', options: ['1,000 ft', '2,000 ft', '3,000 ft', '4,000 ft', '5,000 ft', '6,000 ft', '7,000 ft', '8,000 ft', '9,000 ft', '10,000 ft'], def: '8,000 ft'},
