@@ -76,6 +76,33 @@ const CALCS = [
   }
 },
 {
+  id: 'altfio2', title: 'Altitude FiO2', color: 'prot',
+  fields: [
+    {id: 'fi', label: 'Current FiO2', type: 'number', unit: '%'},
+    {id: 'a1', label: 'Current altitude', type: 'number', unit: 'ft', def: '0'},
+    {id: 'a2', label: 'New altitude (cabin altitude if pressurized)', type: 'number', unit: 'ft', def: '8000'},
+  ],
+  compute(v){
+    let fi = num(v.fi); const a1 = num(v.a1), a2 = num(v.a2);
+    if (!has(fi) || !isFinite(a1) || !isFinite(a2)) return null;
+    if (fi <= 1) fi = fi * 100;
+    if (fi < 21 || fi > 100) return {out: [{k: 'Check FiO2', v: '21–100%'}], work: []};
+    if (a1 < -1000 || a2 < -1000 || a1 > 30000 || a2 > 30000) return {out: [{k: 'Check altitude', v: '−1,000 to 30,000 ft'}], work: []};
+    const pb = ft => 760 * Math.pow(1 - 6.8756e-6 * ft, 5.2559);
+    const p1 = pb(a1), p2 = pb(a2), nf = fi * p1 / p2, pio2 = p1 * fi / 100;
+    const work = [`Barometric pressure at ${a1} ft ≈ ${r(p1, 0)} mmHg; at ${a2} ft ≈ ${r(p2, 0)} mmHg (standard atmosphere)`, `Inspired O2 now: ${r(p1, 0)} × ${r(fi / 100, 2)} = ${r(pio2, 0)} mmHg`, `New FiO2 = ${r(fi, 1)}% × ${r(p1, 0)} ÷ ${r(p2, 0)} = ${r(nf, 1)}%`];
+    const out = nf > 100
+      ? [{k: 'New FiO2 needed', v: '> 100%', big: true}, {k: 'Calculated', v: r(nf, 1) + '%'}]
+      : [{k: 'New FiO2', v: r(nf, 0) + '%', big: true}];
+    out.push({k: 'Pressure change', v: `${r(p1, 0)} → ${r(p2, 0)} mmHg`});
+    const notes = ['Keeps the inspired oxygen pressure the same: FiO2 × barometric pressure before = new FiO2 × barometric pressure after.', 'Pressures are from the standard atmosphere (sea level 760 mmHg, 8,000 ft ≈ 564 mmHg). Using inHg (30 and 22) gives slightly different numbers, e.g. 40% → 55% instead of 54%.', 'Estimate only: it ignores water vapor and the patient’s response. Titrate to SpO2.'];
+    if (nf > 100) notes.unshift('Even 100% O2 can’t match the current inspired oxygen at the new altitude. Consider a lower altitude or cabin altitude.');
+    return {out, work, notes,
+      disclaimer: 'Standard flight physiology gas-law estimate (Dalton’s law), not from the LFN Patient Care Guidelines. For decompression sickness, 4.02 asks for sea level cabin altitude on FW transports.',
+      refs: [{label: 'OpenExamPrep CCP-C: transport stressors and gas laws (760 / 564 mmHg)', href: 'https://open-exam-prep.com/study-guides/ccp-c/transport-and-safety-part2/transport-stressors'}, {label: 'StatPearls: alveolar gas equation (pressure × FiO2)', href: 'https://statpearls.com/sp/al/13/17417/'}, {label: '4.02 Decompression Sickness: cabin altitude, p.77', href: '#4.02@78'}]};
+  }
+},
+{
   id: 'd10', title: 'D10 hypoglycemia', color: 'peds',
   fields: [
     {id: 'who', type: 'seg', options: ['Neonate', 'Pediatric', 'Adult'], def: 'Neonate'},
