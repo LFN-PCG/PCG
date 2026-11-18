@@ -142,13 +142,14 @@ let P = (() => { const p = ls.get(KEY, null); return p && Array.isArray(p.entrie
 let prefs = Object.assign({ttl: 12, med: {}, fold: {}}, ls.get(PREF, {}));
 if (!prefs.fold) prefs.fold = {};
 // Which dropdowns start open (until the user changes them).
-const FOLD_DEF = {'hx:pt': true, 'mon:vitals': true, ev: true, 'ev:Transport': true, 'ev:Resuscitation': true, 'med:drips': true, 'med:given': true};
+// Every new patient starts with all dropdowns collapsed except Age & weight.
+const FOLD_DEF = {'hx:pt': true};
 const isOpen = k => k in prefs.fold ? prefs.fold[k] : !!FOLD_DEF[k];
 let tab = 'log', lastRemoved = null, medQ = '', sheet = null, open = false, snackT = 0, clockT = 0;
 const hasData = () => P.entries.length > 0 || Object.keys(P.hx).some(k => { const v = P.hx[k]; return Array.isArray(v) ? v.length : v !== '' && v != null; });
 function save(){ P.last = Date.now(); ls.set(KEY, P); updateTile(); }
 function savePrefs(){ ls.set(PREF, prefs); }
-function clearPatient(){ P = blank(); ls.del(KEY); pdb.clear(); dropURLs(); updateTile(); }
+function clearPatient(){ P = blank(); ls.del(KEY); prefs.fold = {}; savePrefs(); pdb.clear(); dropURLs(); updateTile(); }
 function expire(){
   if (!prefs.ttl || !P.last || !hasData()) return false;
   if (Date.now() - P.last > prefs.ttl * 3600e3){ clearPatient(); return true; }
@@ -411,6 +412,32 @@ function patientPop(){
   if (h.ageU === 'mo') return +h.age < 1 ? 'N' : 'P';
   return +h.age >= 18 ? 'A' : 'P';
 }
+// Normal ranges by age, shown as placeholder text in the vitals inputs.
+// Pediatric: AHA PALS 2020 (awake HR). SBP lower limit under 10 y follows PCG p.19: 90 + (age x 2).
+// Adult: general reference ranges.
+const NORMS = [
+  {to: 1 / 12, hr: [100, 205], rr: [30, 53], sbp: [67, 84], dbp: [35, 53]},   // neonate < 1 month
+  {to: 1, hr: [100, 180], rr: [30, 53], sbp: [72, 104], dbp: [37, 56]},      // infant
+  {to: 3, hr: [98, 140], rr: [22, 37], sbp: [86, 106], dbp: [42, 63]},       // toddler 1-2 y
+  {to: 6, hr: [80, 120], rr: [20, 28], sbp: [89, 112], dbp: [46, 72]},       // preschool 3-5 y
+  {to: 10, hr: [75, 118], rr: [18, 25], sbp: [97, 115], dbp: [57, 76]},      // school age 6-9 y
+  {to: 12, hr: [75, 118], rr: [18, 25], sbp: [102, 120], dbp: [61, 80]},     // preadolescent 10-11 y
+  {to: 18, hr: [60, 100], rr: [12, 20], sbp: [110, 131], dbp: [64, 83]},     // adolescent 12-17 y
+  {to: Infinity, hr: [60, 100], rr: [12, 20], sbp: [90, 140], dbp: [60, 90]} // adult
+];
+function ageYears(){
+  const h = P.hx;
+  if (h.age === '90+') return 90;
+  if (h.age === '' || h.age == null) return null;
+  return h.ageU === 'mo' ? +h.age / 12 : +h.age;
+}
+function normFor(k){
+  const y = ageYears(); if (y == null) return null;
+  const n = NORMS.find(x => y < x.to); if (!n || !n[k]) return null;
+  let [lo, hi] = n[k];
+  if (k === 'sbp' && y >= 1 && y < 10) lo = Math.max(lo, 90 + 2 * Math.floor(y));
+  return lo + '–' + hi;
+}
 const POPL = {A: 'Adult', P: 'Pediatric', N: 'Neonatal'};
 const rnd = x => { const a = Math.abs(x); const d = a >= 100 ? 0 : a >= 10 ? 1 : a >= 1 ? 2 : 3; const f = 10 ** d; return Math.round(x * f) / f; };
 const pcgLink = (d, label) => `<a class="tk-src" href="#${encodeURIComponent(d.sec)}@${d.p}">${esc(label || `Open PCG ${d.sec}, p.${d.p - 1}`)} ›</a>`;
@@ -554,7 +581,7 @@ function rMon(){
 function rVitals(){
   const lastV = [...P.entries].reverse().find(e => e.k === 'vitals');
   let h = lastV ? `<div class="card"><h3>Last set · ${hm(lastV.t)} · ${ago(lastV.t)}</h3><div class="tk-sum">${esc(vitalsLabel(lastV).replace(/^Vitals: /, ''))}</div></div>` : '';
-  h += '<div class="tk-vgrid">' + VITALS.map(v => `<div class="field"><label for="tkv-${v.k}">${v.l}</label><input id="tkv-${v.k}" data-v="${v.k}" type="number" inputmode="decimal" step="any" placeholder="—" value="${vDraft[v.k] != null ? esc(vDraft[v.k]) : ''}"></div>`).join('') + '</div>';
+  h += '<div class="tk-vgrid">' + VITALS.map(v => `<div class="field"><label for="tkv-${v.k}">${v.l}</label><input id="tkv-${v.k}" data-v="${v.k}" type="number" inputmode="decimal" step="any" placeholder="${normFor(v.k) || '—'}" value="${vDraft[v.k] != null ? esc(vDraft[v.k]) : ''}"></div>`).join('') + '</div>';
   h += lbl('Rhythm') + '<div class="tk-chips">' + RHYTHMS.map(r => `<button class="tk-chip${vDraft.rhythm === r ? ' on' : ''}" data-act="rhythm" data-v="${esc(r)}">${esc(r)}</button>`).join('') + '</div>';
   h += lbl('Time') + `<div class="tk-time"><input type="time" id="tkVt" value="${vDraft.time || hm(Date.now())}"><button class="tk-sbtn" data-act="vnow">Now</button></div>`;
   h += `<button class="btn" data-act="logv" style="margin-top:14px">Log vitals</button>`;
@@ -868,7 +895,7 @@ function show(push){
   const cleared = expire();
   open = true;
   // New patient: open on History so age and weight go in first.
-  if (!P.seen){ P.seen = 1; ls.set(KEY, P); tab = 'hx'; }
+  if (!P.seen){ P.seen = 1; ls.set(KEY, P); tab = 'hx'; prefs.fold = {}; savePrefs(); }
   if (push) history.pushState({tk: 1}, '', '#tracker');
   root.classList.remove('hidden'); document.body.style.overflow = 'hidden';
   render(); gcPhotos();
