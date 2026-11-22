@@ -145,7 +145,7 @@ if (!prefs.fold) prefs.fold = {};
 // Every new patient starts with all dropdowns collapsed except Age & weight.
 const FOLD_DEF = {'hx:pt': true};
 const isOpen = k => k in prefs.fold ? prefs.fold[k] : !!FOLD_DEF[k];
-let tab = 'log', lastRemoved = null, medQ = '', sheet = null, open = false, snackT = 0, clockT = 0;
+let tab = 'hx', lastRemoved = null, medQ = '', sheet = null, open = false, snackT = 0, clockT = 0;
 const hasData = () => P.entries.length > 0 || Object.keys(P.hx).some(k => { const v = P.hx[k]; return Array.isArray(v) ? v.length : v !== '' && v != null; });
 function save(){ P.last = Date.now(); ls.set(KEY, P); updateTile(); }
 function savePrefs(){ ls.set(PREF, prefs); }
@@ -896,6 +896,8 @@ function show(push){
   open = true;
   // New patient: open on History so age and weight go in first.
   if (!P.seen){ P.seen = 1; ls.set(KEY, P); tab = 'hx'; prefs.fold = {}; savePrefs(); }
+  // No entries yet: always open on History. Mid-patient, reopen on the last tab used.
+  if (!P.entries.length) tab = 'hx';
   if (push) history.pushState({tk: 1}, '', '#tracker');
   root.classList.remove('hidden'); document.body.style.overflow = 'hidden';
   render(); gcPhotos();
