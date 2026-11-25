@@ -35,9 +35,17 @@ const fmtN = n => String(Math.round(n * 1000) / 1000);
 
 // ---------- config ----------
 const EVENTS = [
-  {g: 'Transport', items: ['Dispatched', 'En route', 'Pt contact', 'Depart', 'Lift off', 'Landed', 'Arrive destination', 'Handoff complete']},
+  {g: 'Transport', items: ['Flight request', 'Takeoff', 'Landing', 'Load ambulance', 'Unload ambulance', 'Load A/C', 'Unload A/C', 'At patient', 'Arrive', 'Depart']},
   {g: 'Resuscitation', items: ['Arrest / CPR start', 'Pulse check', 'Shock delivered', 'ROSC', 'Re-arrest', 'CPR stopped']},
   {g: 'Notifications', items: ['Report called', 'Med control contacted', 'STEMI alert', 'Stroke alert', 'Trauma alert']},
+];
+// Restock: common disposables, tap to add. No free text.
+const SUPPLIES = [
+  {g: 'Airway', items: ['ETT', 'Stylet', 'Bougie', 'Supraglottic airway', 'ETCO2 adapter', 'Nasal cannula', 'NRB mask', 'BVM', 'OPA', 'NPA', 'Suction catheter', 'Yankauer', 'Suction canister', 'HME filter', 'Vent circuit', 'Tube holder']},
+  {g: 'Access & IV', items: ['IV catheter', 'IV start kit', 'IO needle', 'Saline flush', 'IV tubing', 'Pump tubing', 'Blood tubing', 'Pressure bag', 'Syringe', 'Blunt fill needle', 'Normal saline bag', 'LR bag']},
+  {g: 'Monitoring', items: ['ECG electrodes', 'Defib pads', 'Pacing pads', 'SpO2 probe', 'BP cuff', 'Transducer kit', 'Temp probe', 'Glucometer strips', 'Lancet']},
+  {g: 'Trauma', items: ['Tourniquet', 'Hemostatic gauze', 'Pressure dressing', 'Gauze / 4x4', 'Tape', 'Chest seal', 'Decompression needle', 'Pelvic binder', 'Cervical collar', 'Splint', 'Trauma shears']},
+  {g: 'Other', items: ['Gloves', 'Emesis bag', 'Foley kit', 'OG / NG tube', 'Warming blanket', 'Cold packs', 'Blanket', 'Linen', 'Restraints', 'Sharps container']},
 ];
 const SIDE = {k: 'Side', pick: ['L', 'R', 'Bilat']};
 const TX = [
@@ -137,8 +145,9 @@ fetch('data.json').then(r => r.ok ? r.json() : null).then(d => {
 }).catch(() => {});
 
 // ---------- state ----------
-const blank = () => ({v: 1, entries: [], hx: {}, last: 0});
+const blank = () => ({v: 1, entries: [], hx: {}, rs: {}, rsDone: [], last: 0});
 let P = (() => { const p = ls.get(KEY, null); return p && Array.isArray(p.entries) ? p : blank(); })();
+if (!P.rs) P.rs = {}; if (!P.rsDone) P.rsDone = [];
 let prefs = Object.assign({ttl: 12, med: {}, fold: {}}, ls.get(PREF, {}));
 if (!prefs.fold) prefs.fold = {};
 // Which dropdowns start open (until the user changes them).
@@ -146,7 +155,7 @@ if (!prefs.fold) prefs.fold = {};
 const FOLD_DEF = {'hx:pt': true};
 const isOpen = k => k in prefs.fold ? prefs.fold[k] : !!FOLD_DEF[k];
 let tab = 'hx', lastRemoved = null, medQ = '', sheet = null, open = false, snackT = 0, clockT = 0;
-const hasData = () => P.entries.length > 0 || Object.keys(P.hx).some(k => { const v = P.hx[k]; return Array.isArray(v) ? v.length : v !== '' && v != null; });
+const hasData = () => P.entries.length > 0 || Object.keys(P.rs).length > 0 || Object.keys(P.hx).some(k => { const v = P.hx[k]; return Array.isArray(v) ? v.length : v !== '' && v != null; });
 function save(){ P.last = Date.now(); ls.set(KEY, P); updateTile(); }
 function savePrefs(){ ls.set(PREF, prefs); }
 function clearPatient(){ P = blank(); ls.del(KEY); prefs.fold = {}; savePrefs(); pdb.clear(); dropURLs(); updateTile(); }
@@ -309,6 +318,16 @@ const css = `
 .tk-thumb{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;background:var(--chip);display:block}
 .tk-thumb.sm{width:64px;height:64px;margin-top:6px}
 .tk-pfull{width:100%;max-height:60vh;object-fit:contain;border-radius:10px;background:var(--chip);margin:4px 0 8px}
+.tk-rs{display:flex;align-items:center;gap:6px;border-top:1px solid var(--line)}
+.tk-rs:first-child{border-top:0}
+.tk-rs-n{flex:1;min-width:0;display:flex;align-items:center;gap:12px;padding:11px 2px;text-align:left;font-size:16px}
+.tk-rs-n .l{flex:1;min-width:0}
+.tk-rs-n .q{color:var(--muted);font-weight:700;font-variant-numeric:tabular-nums}
+.tk-box{flex:none;width:24px;height:24px;border-radius:7px;border:2px solid var(--muted);display:grid;place-items:center;font-weight:800;font-size:15px}
+.tk-rs.done .tk-box{background:var(--c-trk);border-color:transparent;color:var(--c-ink)}
+.tk-rs.done .l{text-decoration:line-through;color:var(--muted)}
+.tk-rs .tk-sbtn{min-width:40px;font-size:20px}
+.tk-rs-k{font-size:11px;font-weight:700;letter-spacing:.05em;color:var(--muted);padding:0 6px}
 .tk-row .k{flex:none;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding-top:3px}
 .tk-vgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
 .tk-vgrid .field input{font-size:24px}
@@ -351,16 +370,16 @@ document.body.appendChild(root);
 const q = s => root.querySelector(s);
 
 // ---------- render ----------
-const TABS = [['hx', 'History'], ['mon', 'Monitoring'], ['log', 'Log'], ['timeline', 'Timeline'], ['photo', 'Photo']];
+const TABS = [['hx', 'History'], ['mon', 'Monitoring'], ['log', 'Log'], ['timeline', 'Timeline'], ['photo', 'Photo'], ['rs', 'Restock']];
 function render(){
   if (!open) return;
-  q('#tkTabs').innerHTML = TABS.map(([k, l]) => `<button data-tab="${k}" class="${tab === k ? 'on' : ''}">${l}${k === 'timeline' && P.entries.length ? `<span class="n">${P.entries.length}</span>` : ''}</button>`).join('');
+  q('#tkTabs').innerHTML = TABS.map(([k, l]) => `<button data-tab="${k}" class="${tab === k ? 'on' : ''}">${l}${k === 'timeline' && P.entries.length ? `<span class="n">${P.entries.length}</span>` : ''}${k === 'rs' && rsLeft() ? `<span class="n">${rsLeft()}</span>` : ''}</button>`).join('');
   const tb = q('#tkTabs'), on = q('#tkTabs .on');
   if (on && (on.offsetLeft < tb.scrollLeft || on.offsetLeft + on.offsetWidth > tb.scrollLeft + tb.clientWidth)) tb.scrollLeft = on.offsetLeft - 10;
   tick();
   q('#tkUndo').disabled = !P.entries.length;
   const y = q('#tkBody').scrollTop;
-  const f = {log: rLog, mon: rMon, hx: rHx, timeline: rTimeline, photo: rPhoto}[tab];
+  const f = {log: rLog, mon: rMon, hx: rHx, timeline: rTimeline, photo: rPhoto, rs: rRestock}[tab];
   q('#tkBody').innerHTML = f();
   fillThumbs();
   q('#tkBody').scrollTop = y;
@@ -629,6 +648,47 @@ function exportText(){
   if (dr.length){ L.push(''); L.push('Drips running at export:'); for (const e of dr) L.push(`  ${e.n} ${e.dose != null ? fmtN(e.dose) + ' ' + e.unit : ''}`.trimEnd()); }
   return L.join('\n');
 }
+// ---------- restock ----------
+// Items from the log (meds, procedures) plus supplies added by tap. Check off as restocked.
+function rsAuto(){
+  const m = new Map(), add = (key, name, n, unit) => { const o = m.get(key) || {key, name, n: 0, unit}; o.n += n; m.set(key, o); };
+  for (const e of P.entries){
+    if (e.k === 'med' && (!e.act || e.act === 'push')) add('med:' + e.n, e.n, 1, 'dose');
+    else if (e.k === 'med' && e.act === 'start') add('drip:' + e.n, e.n + ' drip', 1, 'bag');
+    else if (e.k === 'tx'){
+      const u = (e.d || []).map(x => /^Units (\d+(?:\.\d+)?)/.exec(x)).find(Boolean);
+      if (u) add('tx:' + e.n, e.n, +u[1], 'unit');
+      else add('tx:' + e.n, e.n, 1, '');
+    }
+  }
+  return [...m.values()];
+}
+function rsAll(){
+  return [...rsAuto().map(o => ({...o, auto: 1})), ...Object.entries(P.rs).map(([n, c]) => ({key: 'sup:' + n, name: n, n: c, unit: '', sup: 1}))];
+}
+const rsLeft = () => rsAll().filter(o => !P.rsDone.includes(o.key)).length;
+const rsQty = o => o.unit ? `${fmtN(o.n)} ${o.unit}${o.n === 1 ? '' : 's'}` : (o.n > 1 ? '×' + fmtN(o.n) : '');
+function restockText(){
+  const all = rsAll().filter(o => !P.rsDone.includes(o.key));
+  return ['RESTOCK LIST', ...all.map(o => `- ${o.name}${rsQty(o) ? ' ' + rsQty(o) : ''}`)].join('\n');
+}
+function rRestock(){
+  const all = rsAll();
+  let h = '';
+  if (!all.length) h += '<div class="empty">Nothing to restock yet. Meds and procedures you log show up here, and you can add supplies below.</div>';
+  else {
+    h += lbl(`To restock · ${rsLeft()} of ${all.length} left · tap to check off`) + '<div class="list">' + all.map(o => {
+      const done = P.rsDone.includes(o.key);
+      return `<div class="tk-rs${done ? ' done' : ''}"><button class="tk-rs-n" data-act="rsdone" data-k="${esc(o.key)}"><span class="tk-box">${done ? '✓' : ''}</span><span class="l">${esc(o.name)}</span><span class="q">${esc(rsQty(o))}</span></button>${o.sup ? `<button class="tk-sbtn" data-act="rsdec" data-n="${esc(o.name)}" aria-label="One less">−</button><button class="tk-sbtn" data-act="rsadd" data-n="${esc(o.name)}" aria-label="One more">+</button>` : '<span class="tk-rs-k">LOG</span>'}</div>`;
+    }).join('') + '</div>';
+    h += `<div class="tk-bar"><button class="btn" data-act="rscopy"${rsLeft() ? '' : ' disabled'}>Copy restock list</button>${navigator.share ? `<button class="btn ghost" data-act="rsshare"${rsLeft() ? '' : ' disabled'}>Share…</button>` : ''}</div>`;
+  }
+  h += lbl('Add supplies used');
+  for (const grp of SUPPLIES) h += fold('rs:' + grp.g, esc(grp.g), '', '<div class="tk-chips">' + grp.items.map(n => `<button class="tk-chip${P.rs[n] ? ' on' : ''}" data-act="rsadd" data-n="${esc(n)}">${esc(n)}${P.rs[n] ? ' ×' + P.rs[n] : ''}</button>`).join('') + '</div>');
+  h += '<div class="tk-note" style="margin-top:10px">The restock list clears with the patient, so copy it first if you still need it.</div>';
+  return h;
+}
+
 // ---------- photos ----------
 const urls = {};
 function dropURLs(){ for (const k in urls){ URL.revokeObjectURL(urls[k]); delete urls[k]; } }
@@ -856,6 +916,11 @@ root.addEventListener('click', e => {
     case 'doclear': clearPatient(); vDraft = {}; mDraft = {vent: {}, neuro: {}, fhr: {}}; closeSheet(); tab = 'hx'; P.seen = 1; ls.set(KEY, P); render(); snack('Patient cleared. Enter age and weight for the next patient.'); break;
     case 'ttl': prefs.ttl = +v; savePrefs(); render(); break;
     case 'copy': copyText(exportText()); break;
+    case 'rsadd': P.rs[n] = (P.rs[n] || 0) + 1; P.rsDone = P.rsDone.filter(k => k !== 'sup:' + n); save(); render(); break;
+    case 'rsdec': if (P.rs[n] > 1) P.rs[n]--; else { delete P.rs[n]; P.rsDone = P.rsDone.filter(k => k !== 'sup:' + n); } save(); render(); break;
+    case 'rsdone': { const k = b.dataset.k; P.rsDone = P.rsDone.includes(k) ? P.rsDone.filter(x => x !== k) : [...P.rsDone, k]; save(); render(); break; }
+    case 'rscopy': copyText(restockText(), 'Restock list copied.'); break;
+    case 'rsshare': navigator.share({title: 'Restock list', text: restockText()}).catch(() => {}); break;
     case 'share': navigator.share({title: 'Patient timeline', text: exportText()}).catch(() => {}); break;
   }
 });
@@ -878,8 +943,8 @@ root.addEventListener('change', e => {
     P.hx.alg = arr; save(); render();
   }
 });
-function copyText(s){
-  const done = () => snack('Timeline copied. Paste it into your charting.');
+function copyText(s, msg){
+  const done = () => snack(msg || 'Timeline copied. Paste it into your charting.');
   if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(s).then(done, () => fallback());
   else fallback();
   function fallback(){
